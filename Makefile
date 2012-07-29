@@ -3,9 +3,9 @@ CC := gcc
 # Enable for debug
 CFLAGS := -g -ggdb -std=c99 -Wall -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -Wdeclaration-after-statement -Werror-implicit-function-declaration -Wstrict-prototypes -Werror
 
-INCLUDES := -I.
+INCLUDES := -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include
 
-siahsd_LIB := -ltalloc
+siahsd_LIB := -ltalloc -ldbi -lglib-2.0
 siahsd_OBJ := sia.o siahsd.o
 
 OBJ := $(siahsd_OBJ)
