@@ -188,9 +188,13 @@ STATUS parse_message(TALLOC_CTX *mem_ctx, dbi_conn conn, struct packet *pkt) {
 	}
 
 	quoted_prom = talloc_quoted_string(message, prom);
+	NO_MEM_RETURN(quoted_prom);
 	quoted_code = talloc_quoted_string(message, code);
+	NO_MEM_RETURN(quoted_code);
 	quoted_long_code = talloc_quoted_string(message, sia_code_str(code));
+	NO_MEM_RETURN(quoted_long_code);
 	quoted_description = talloc_quoted_string(message, ptr);
+	NO_MEM_RETURN(quoted_description);
 
 	fprintf(stderr, "%s %s %s -- %s: %s\n", prom, code, ptr, sia_code_str(code), sia_code_desc(code));
 
