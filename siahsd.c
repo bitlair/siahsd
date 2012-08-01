@@ -15,34 +15,11 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <errno.h>
-
-
-/* Libs */
-#include <talloc.h>
-#include <dbi/dbi.h>
-#include <glib.h>
-
-/* Private */
-#include "siahsd.h"
+#include "includes.h"
 #include "siahs.h"
-#include "sia.h"
 
 #define MY_DEVICE "RCIPv2.4"
 
-#define CONFIGFILE "/etc/siahsd.conf"
 
 /* TODO:
  * - Add event connection to jsonbot
@@ -51,107 +28,17 @@
  */
 
 
-/* My global state */
-configuration *conf = NULL;
-const char *process_name = NULL;
-
-STATUS debug(int loglevel, const char *location, const char *function, ...)
-{
-	va_list ap;
-	static char timebuf[100]; /* Static because this should not be reallocated 
-	                             in case of out of memory errors */
-	time_t rawtime;
-	struct tm *timeinfo;
-	size_t s;
-	FILE *logfile;
-
-	if (loglevel > conf->log_level) {
-		return ST_OK;
-	}
-
-	logfile = fopen(conf->log_file, "a");
-	if (logfile == NULL && conf->foreground) {
-		fprintf(stderr, "Error opening log file: %s\n", strerror(errno));
-	}
-
-	time(&rawtime);
-	timeinfo = localtime(&rawtime);
-	
-	s = strftime(timebuf, sizeof(timebuf), "%c", timeinfo);
-	if (s == 0) {
-		const char *text = "Failed to get proper strftime formatted date\n";
-		if (conf->foreground) {
-			fprintf(stderr, text);
-		}
-		fprintf(logfile, text);
-		return ST_GENERAL_FAILURE;
-	}
-
-	fprintf(logfile, "%s: %s(%d): Log level %d, at %s in function %s():\n", 
-	                 timebuf, process_name, getpid(), loglevel, location, function);
-	if (conf->foreground)
-		fprintf(stderr, "%s: %s(%d): Log level %d, at %s in function %s():\n", 
-		                timebuf, process_name, getpid(), loglevel, location, function);
-
-	va_start(ap, function);
-	vfprintf(logfile, va_arg(ap, char *), ap);
-	va_end(ap);
-	fputc('\n', logfile);
-
-	if (conf->foreground) {
-		va_start(ap, function);
-		vfprintf(stderr, va_arg(ap, char *), ap);
-		va_end(ap);
-		fputc('\n', stderr);
-	}
-
-	fclose(logfile);
-
-	return ST_OK;
-}
-
-/*
- * talloc_quoted_string escapes quotes in a string and encapsulates it in quotes.
- * It returns a pointer to talloc'ed memory, the quoted string.
- */
-char *talloc_quoted_string(TALLOC_CTX *mem_ctx, const char *string) {
-	/* Allocate twice the string length, to be safe and not having to realloc all the time */
-	char *ret = talloc_zero_array(mem_ctx, char, strlen(string) * 2 + 1);
-	size_t i, j;
-
-	NO_MEM_RETURN_RV(ret, NULL);
-
-	ret[0] = '\'';
-
-	for (i = 0, j = 1; i < strlen(string); i++, j++) {
-		if (string[i] == '\'' || string[i] == '\\') {
-			ret[j] = '\'';
-			ret[++j] = string[i];
-		} else {
-			ret[j] = string[i];
-		}
-	}
-	ret[j] = '\'';
-	ret[++j]  = '\0';
-
-	return ret;
-}
-
 /*
  * parse_message parses the string portion of the SIA-HS message
  * and writes the event to the database.
  * It returns nothing.
  */
-STATUS parse_message(TALLOC_CTX *mem_ctx, dbi_conn conn, struct packet *pkt) {
+STATUS parse_message(TALLOC_CTX *mem_ctx, dbi_conn conn, struct siahs_packet *pkt) {
 	char *message = talloc_strdup(mem_ctx, pkt->message + strlen("MESSAGE "));
 	char *ptr = message;
 	char *prom = ptr;
 	char *pkt_prom;
 	char *code;
-	char *quoted_prom;
-	char *quoted_code;
-	char *quoted_long_code;
-	char *quoted_description;
 
 	NO_MEM_RETURN(message);
 
@@ -187,19 +74,7 @@ STATUS parse_message(TALLOC_CTX *mem_ctx, dbi_conn conn, struct packet *pkt) {
 		return ST_ASSERTION_FAILED;
 	}
 
-	quoted_prom = talloc_quoted_string(message, prom);
-	NO_MEM_RETURN(quoted_prom);
-	quoted_code = talloc_quoted_string(message, code);
-	NO_MEM_RETURN(quoted_code);
-	quoted_long_code = talloc_quoted_string(message, sia_code_str(code));
-	NO_MEM_RETURN(quoted_long_code);
-	quoted_description = talloc_quoted_string(message, ptr);
-	NO_MEM_RETURN(quoted_description);
-
-	fprintf(stderr, "%s %s %s -- %s: %s\n", prom, code, ptr, sia_code_str(code), sia_code_desc(code));
-
-	dbi_conn_queryf(conn, "INSERT INTO events (timestamp, prom, code, long_code, description) VALUES (NOW(), %s, %s, %s, %s)\n",
-		 quoted_prom, quoted_code, quoted_long_code, quoted_description);
+	log_event_to_database(message, conn, prom, code, ptr);
 
 	talloc_free(message);
 
@@ -213,7 +88,7 @@ STATUS parse_message(TALLOC_CTX *mem_ctx, dbi_conn conn, struct packet *pkt) {
  * and a string with the reply message.
  * It returns nothing.
  */
-STATUS send_reply(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in from, struct packet *pkt, const char *string) {
+STATUS send_reply(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in from, struct siahs_packet *pkt, const char *string) {
 	int n;
 	uint8_t *reply;
 	int i;
@@ -272,99 +147,6 @@ STATUS send_reply(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in from, struct
 	return ST_OK;
 }
 
-STATUS read_configuration_file(TALLOC_CTX *mem_ctx)
-{
-	GError *error = NULL;
-	GKeyFile *keyfile = g_key_file_new ();
-
-	if (!g_key_file_load_from_file (keyfile, CONFIGFILE, 0, &error)) {
-		g_error (error->message);
-		return ST_CONFIGURATION_ERROR;
-	}
-
-	conf = talloc(mem_ctx, configuration);
-	NO_MEM_RETURN(conf);
-
-	conf->database_host = g_key_file_get_string(keyfile, "database",
-                                                  "host", &error);
-	if (error) {
-		fprintf(stderr, "No database host supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->database_name = g_key_file_get_string(keyfile, "database",
-                                                  "name", &error);
-	if (error) {
-		fprintf(stderr, "No database name supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->database_driver = g_key_file_get_string(keyfile, "database",
-                                                  "driver", &error);
-	if (error) {
-		fprintf(stderr, "No database driver supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->database_username = g_key_file_get_string(keyfile, "database",
-                                                  "username", &error);
-	if (error) {
-		fprintf(stderr, "No database username supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->database_password = g_key_file_get_string(keyfile, "database",
-                                                  "password", &error);
-	if (error) {
-		fprintf(stderr, "No database password supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-
-	conf->siahs_port = g_key_file_get_integer(keyfile, "siahs", "port", &error);
-	if (error) {
-		fprintf(stderr, "No SIA-HS port supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->log_file = g_key_file_get_string(keyfile, "siahsd", "log file", &error);
-	if (error) {
-		fprintf(stderr, "No log file supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->log_level = g_key_file_get_integer(keyfile, "siahsd", "log level", &error);
-	if (error) {
-		fprintf(stderr, "No log level supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->pid_file = g_key_file_get_string(keyfile, "siahsd", "pid file", &error);
-	if (error) {
-		fprintf(stderr, "No pid file supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->foreground = g_key_file_get_boolean(keyfile, "siahsd", "foreground", &error);
-	if (error) {
-		conf->foreground = false;
-	}
-
-	return ST_OK;
-}
-
-STATUS connect_to_database(dbi_conn *conn)
-{
-	DEBUG(1, "Connecting to %s database %s at %s as user %s", conf->database_driver, 
-		conf->database_name, conf->database_host, conf->database_username);
-
-	dbi_initialize(NULL);
-	*conn = dbi_conn_new(conf->database_driver);
-	dbi_conn_set_option(*conn, "host", conf->database_host);
-	dbi_conn_set_option(*conn, "username", conf->database_username);
-	dbi_conn_set_option(*conn, "password", conf->database_password);
-	dbi_conn_set_option(*conn, "dbname", conf->database_name);
-	dbi_conn_set_option(*conn, "encoding", "UTF-8");
-
-	if (dbi_conn_connect(*conn) < 0) {
-		DEBUG(0, "Could not connect to the database");
-		return ST_DATABASE_FAILURE;
-	} 
-
-	return ST_OK;
-}
-
 
 int main(int argc, char **argv) {
 	int sock, n, i;
@@ -376,8 +158,9 @@ int main(int argc, char **argv) {
 	STATUS rv;
 	FILE *pidfile;
 	pid_t pid;
+	configuration *conf;
 
-	process_name = argv[0];
+	set_process_name(argv[0]);
 
 	/* Initialize a memory context */
 	mem_ctx = talloc_init("siahsd");
@@ -387,6 +170,8 @@ int main(int argc, char **argv) {
 	rv = read_configuration_file(mem_ctx);
 	if (rv != ST_OK)
 		return rv;
+
+	conf = get_conf();
 
 	/* Daemonize if we're not supposed to run in foreground mode */
 	if (!conf->foreground) {
@@ -427,7 +212,7 @@ int main(int argc, char **argv) {
 
 
 	DEBUG(0, "Started %s and waiting for SIA-HS packets on port %d", 
-	         process_name, conf->siahs_port);
+	         get_process_name(), conf->siahs_port);
 
 	/* Open a connection to the database */
 	rv = connect_to_database(&conn);
@@ -441,12 +226,12 @@ int main(int argc, char **argv) {
 	fromlen = sizeof(struct sockaddr_in);
 	while (1) {
 		uint16_t src_port;
-		struct packet *pkt;
+		struct siahs_packet *pkt;
 		uint8_t *decoded;
 		char buf[1024]; /* Purposefully static length */
 		char *reply_message;
 
-		pkt = talloc_zero(mem_ctx, struct packet);
+		pkt = talloc_zero(mem_ctx, struct siahs_packet);
 
 		NO_MEM_RETURN(pkt);
 

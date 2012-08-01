@@ -638,7 +638,7 @@ const struct {
 
 
 
-const char *sia_code_str(char *code) {
+const char *sia_code_str(const char *code) {
 	uint16_t i;
 
 	for (i = 0; sia_codes[i].code != NULL; i++) {
@@ -650,7 +650,7 @@ const char *sia_code_str(char *code) {
 	return NULL;
 }
 
-const char *sia_code_desc(char *code) {
+const char *sia_code_desc(const char *code) {
 	uint16_t i;
 
 	for (i = 0; sia_codes[i].code != NULL; i++) {

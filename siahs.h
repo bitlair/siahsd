@@ -15,7 +15,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-struct packet {
+struct siahs_packet {
 	uint32_t len;
 	char unknown1; /* 0x01 */
 	char unknown2; /* 0x01 */

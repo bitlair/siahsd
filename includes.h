@@ -15,6 +15,30 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-const char *sia_code_str(const char *code);
-const char *sia_code_desc(const char *code);
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
+
+
+/* Libs */
+#include <talloc.h>
+#include <dbi/dbi.h>
+#include <glib.h>
+
+/* Private */
+#include "status.h"
+#include "talloc.h"
+#include "sia.h"
+#include "config.h"
+#include "database.h"
