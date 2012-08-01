@@ -22,6 +22,8 @@ clean:
 	rm -f $(binaries)
 	rm -f $(OBJ)
 	rm -f $(OBJ:.o=.d)
+	rm -f ndr_*.[ch]
+	rm -f secip.h
 
 distclean: clean
 	rm -f tags
