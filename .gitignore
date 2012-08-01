@@ -2,4 +2,8 @@
 *.d
 siahsd
 tryouts/crc_validate
-
+secipd
+secip.h
+ndr_secip.c
+ndr_secip.h
+tags
