@@ -30,11 +30,14 @@ typedef struct {
 	gboolean foreground;
 	char *pid_file;
 	gint secip_port;
+	char *rsa_key_file;
 } configuration;
 
 
 configuration *get_conf(void);
-const char *get_process_name(void);
+STATUS get_rsa_keys(struct rsa_public_key **pub, struct rsa_private_key **priv);
+STATUS set_rsa_keys(struct rsa_public_key *pub, struct rsa_private_key *priv);
 
+const char *get_process_name(void);
 STATUS set_process_name(const char *name);
 STATUS read_configuration_file(TALLOC_CTX *mem_ctx);

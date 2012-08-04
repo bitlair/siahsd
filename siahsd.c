@@ -228,19 +228,19 @@ int main(int argc, char **argv) {
 		uint16_t src_port;
 		struct siahs_packet *pkt;
 		uint8_t *decoded;
-		char buf[1024]; /* Purposefully static length */
+		uint8_t *buf = talloc_array(conf, uint8_t, 1024);
 		char *reply_message;
 
 		pkt = talloc_zero(mem_ctx, struct siahs_packet);
 
 		NO_MEM_RETURN(pkt);
 
-		n = recvfrom(sock, &buf, sizeof(buf), 0, (struct sockaddr *) &from, &fromlen);
+		n = recvfrom(sock, &buf, 1024, 0, (struct sockaddr *) &from, &fromlen);
 		if (n < 0) {
 			DEBUG( 0, "Error when storing packet in buffer!");
 			talloc_free(pkt);
 			continue;
-		} else if (n == sizeof(buf)) {
+		} else if (n == 1024) {
 			DEBUG(0, "Maximum packet size exceeded!");
 			talloc_free(pkt);
 			continue;
@@ -248,7 +248,7 @@ int main(int argc, char **argv) {
 		
 		src_port = ntohs(from.sin_port);
 
-		pkt->len = ntohl(*(uint32_t *)buf);
+		pkt->len = ntohl(*(uint32_t *)&buf[0]);
 
 		if (pkt->len > n-4) {
 			DEBUG(0, "Message length is longer than the packet (malformed packet!)");

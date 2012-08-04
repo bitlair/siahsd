@@ -15,7 +15,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
+#include <sys/time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -31,10 +31,12 @@
 #include <errno.h>
 
 
+
 /* Libs */
 #include <talloc.h>
 #include <dbi/dbi.h>
 #include <glib.h>
+#include <nettle/rsa.h>
 
 /* Private */
 #include "status.h"

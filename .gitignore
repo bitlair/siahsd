@@ -7,3 +7,6 @@ secip.h
 ndr_secip.c
 ndr_secip.h
 tags
+bin/.*
+.lock-waf*
+build/

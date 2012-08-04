@@ -20,7 +20,8 @@
 /* My global state */
 configuration *conf = NULL;
 const char *process_name = NULL;
-
+struct rsa_public_key *public_key = NULL;
+struct rsa_private_key *private_key = NULL;
 
 configuration *get_conf(void) {
 	return conf;
@@ -34,6 +35,22 @@ STATUS set_process_name(const char *name) {
 	process_name = name;
 	return ST_OK;
 }
+
+STATUS get_rsa_keys(struct rsa_public_key **pub, struct rsa_private_key **priv) {
+	if (pub == NULL || priv == NULL) {
+		return ST_NO_SUCH_OBJECT;
+	}
+	*pub = public_key;
+	*priv = private_key;
+	return ST_OK;
+}
+STATUS set_rsa_keys(struct rsa_public_key *pub, struct rsa_private_key *priv) {
+	public_key = pub;
+	private_key = priv;
+
+	return ST_OK;
+}
+
 
 STATUS read_configuration_file(TALLOC_CTX *mem_ctx)
 {
@@ -79,11 +96,6 @@ STATUS read_configuration_file(TALLOC_CTX *mem_ctx)
 		return ST_CONFIGURATION_ERROR;
 	}
 
-	conf->siahs_port = g_key_file_get_integer(keyfile, "siahs", "port", &error);
-	if (error) {
-		fprintf(stderr, "No SIA-HS port supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
 	conf->log_file = g_key_file_get_string(keyfile, "siahsd", "log file", &error);
 	if (error) {
 		fprintf(stderr, "No log file supplied in the configuration.\n");
@@ -103,11 +115,10 @@ STATUS read_configuration_file(TALLOC_CTX *mem_ctx)
 	if (error) {
 		conf->foreground = false;
 	}
+	/* Optional parameters are protocol-specific */
+	conf->siahs_port = g_key_file_get_integer(keyfile, "siahs", "port", &error);
 	conf->secip_port = g_key_file_get_integer(keyfile, "secip", "port", &error);
-	if (error) {
-		fprintf(stderr, "No SecIP port supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
+	conf->rsa_key_file = g_key_file_get_string(keyfile, "secip", "rsa key file", &error);
 
 	return ST_OK;
 }

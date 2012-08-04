@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if ! /usr/bin/env python -c "import sys;sys.exit(0)";then
+	echo "You need to install python for this to work"
+	echo "You might also want to grab the following debian packages:"
+	echo "libglib-dev libdbi-dev libtalloc-dev nettle-dev"
+	exit 1
+fi
+
+bin/waf configure
