@@ -22,6 +22,7 @@
 
 
 /* TODO:
+ * - Move this interface file to pidl generated interface
  * - Add event connection to jsonbot
  * - Keep PROM state and monitor keepalives
  * - Make a load balancer that balances REGISTRATION REQUESTS to the proper port

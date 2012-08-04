@@ -94,12 +94,12 @@ def build(bld):
     bld.stlib(source="sia.c", target="sia", use='glib-2.0')
 
     bld.program(
-                source = 'config.c status.c sia.c siahsd.c',
+                source = 'siahsd.c',
                 target = 'siahsd',
                 use    = [ 'database', 'config', 'status', 'sia', 'dbi', 'talloc','glib-2.0' ])
 
     bld.program(
-                source = 'secip.idl config.c status.c sia.c secipd.c crc16.c',
+                source = 'secip.idl secipd.c crc16.c',
                 target = 'secipd',
                 use    = [ 'database', 'config', 'status', 'sia', 'dbi', 'talloc','glib-2.0', 'nettle', 'ndr' ])
     pass
