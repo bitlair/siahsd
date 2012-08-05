@@ -39,12 +39,15 @@ STATUS jsonbot_notify(TALLOC_CTX *mem_ctx, dbi_conn conn, const char *prom, cons
 	outtext = talloc_asprintf(mem_ctx, "%s %s Event at prom %s: %s: %s: %s -- %s\n",
 			conf->jsonbot_password, conf->jsonbot_privmsg_to, prom, description, code,
 			sia_code_str(code), sia_code_desc(code));
+	NO_MEM_RETURN(outtext);
 
 
 	msglen = (strlen(outtext) + 1) + (16 - ((strlen(outtext) + 1) % 16));
 
-	msgbuf = talloc_zero_array(mem_ctx, uint8_t, msglen + 1);
-	msgbuf_crypted = talloc_array(mem_ctx, uint8_t, msglen + 1);
+	msgbuf = talloc_zero_array(outtext, uint8_t, msglen + 1);
+	NO_MEM_RETURN(msgbuf);
+	msgbuf_crypted = talloc_array(outtext, uint8_t, msglen + 1);
+	NO_MEM_RETURN(msgbuf_crypted);
 
 	memcpy(msgbuf, outtext, strlen(outtext));
 
@@ -69,6 +72,8 @@ STATUS jsonbot_notify(TALLOC_CTX *mem_ctx, dbi_conn conn, const char *prom, cons
 		DEBUG(0, "Failed to send UDP packet to %s:%d", conf->jsonbot_address, conf->jsonbot_port);
 		return ST_GENERAL_FAILURE;
 	}
+
+	talloc_free(outtext);
 
 	return ST_OK;
 }
