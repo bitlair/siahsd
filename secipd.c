@@ -24,7 +24,7 @@ static int read_rsa_keys(void) {
 	uint8_t buf[1024];
 	struct rsa_private_key *priv;
 	struct rsa_public_key *pub;
-	configuration *conf = get_conf();
+	const configuration *conf = get_conf();
 	uint8_t *buffer = NULL;
 	size_t n, size=0;
 
@@ -120,7 +120,7 @@ int main (int argc, char **argv) {
 	STATUS rv;
 	FILE *pidfile;
 	pid_t pid;
-	configuration *conf;
+	const configuration *conf;
 
 	set_process_name(argv[0]);
 

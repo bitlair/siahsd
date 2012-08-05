@@ -31,10 +31,15 @@ typedef struct {
 	char *pid_file;
 	gint secip_port;
 	char *rsa_key_file;
+	char *jsonbot_address;
+	gint jsonbot_port;
+	char *jsonbot_aeskey;
+	char *jsonbot_password;
+	char *jsonbot_privmsg_to;
 } configuration;
 
 
-configuration *get_conf(void);
+const configuration *get_conf(void);
 STATUS get_rsa_keys(struct rsa_public_key **pub, struct rsa_private_key **priv);
 STATUS set_rsa_keys(struct rsa_public_key *pub, struct rsa_private_key *priv);
 

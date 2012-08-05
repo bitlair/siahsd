@@ -28,7 +28,7 @@ def process_idl(self, node):
 
 def dist(ctx):
         ctx.base_name = 'siahsd'
-        ctx.algo      = 'bz2'
+        ctx.algo      = 'tar.bz2'
         ctx.excl      = ' **/.waf-1* **/*~ **/*.o **/*.swp **/.lock-w*'
         ctx.files     = ctx.path.ant_glob('**/wscript')
 
@@ -92,16 +92,17 @@ def build(bld):
     bld.stlib(source="status.c", target="status", use='glib-2.0')
     bld.stlib(source="config.c", target="config", use='glib-2.0')
     bld.stlib(source="sia.c", target="sia", use='glib-2.0')
+    bld.stlib(source="jsonbot.c", target="jsonbot", use='glib-2.0')
 
     bld.program(
                 source = 'siahsd.c',
                 target = 'siahsd',
-                use    = [ 'database', 'config', 'status', 'sia', 'dbi', 'talloc','glib-2.0' ])
+                use    = [ 'database', 'config', 'status', 'sia', 'jsonbot', 'dbi', 'talloc','glib-2.0', 'nettle' ])
 
     bld.program(
                 source = 'secip.idl secipd.c crc16.c',
                 target = 'secipd',
-                use    = [ 'database', 'config', 'status', 'sia', 'dbi', 'talloc','glib-2.0', 'nettle', 'ndr' ])
+                use    = [ 'database', 'config', 'status', 'sia', 'jsonbot', 'dbi', 'talloc','glib-2.0', 'nettle', 'ndr' ])
     pass
 
 def clean(ctx):

@@ -44,3 +44,4 @@
 #include "sia.h"
 #include "config.h"
 #include "database.h"
+#include "jsonbot.h"

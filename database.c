@@ -75,7 +75,7 @@ STATUS log_event_to_database(TALLOC_CTX *mem_ctx, dbi_conn conn, const char *pro
 
 STATUS connect_to_database(dbi_conn *conn)
 {
-	configuration *conf = get_conf();
+	const configuration *conf = get_conf();
 
 	DEBUG(1, "Connecting to %s database %s at %s as user %s", conf->database_driver, 
 		conf->database_name, conf->database_host, conf->database_username);

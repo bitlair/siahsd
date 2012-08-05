@@ -58,14 +58,6 @@ STATUS parse_message(TALLOC_CTX *mem_ctx, dbi_conn conn, struct siahs_packet *pk
 
 	/* The remaining ptr contains the human readable description string */
 
-	
-	/* Ignore alive! messages */
-	if (strcmp(code, "alive!") == 0) {
-		DEBUG(2, "Got keepalive packet from prom %x", prom);
-		/* FIXME We must update some keepalive status somewhere to generate offline messages */
-		return ST_OK;
-	}
-
 	/* Assert that string prom is identical to hex representation of pkt->prom */
 	pkt_prom = talloc_asprintf(message, "%04x", pkt->prom);
 
@@ -75,7 +67,16 @@ STATUS parse_message(TALLOC_CTX *mem_ctx, dbi_conn conn, struct siahs_packet *pk
 		return ST_ASSERTION_FAILED;
 	}
 
+	
+	/* Ignore alive! messages */
+	if (strcmp(code, "alive!") == 0) {
+		DEBUG(2, "Got keepalive packet from prom %s", prom);
+		/* FIXME We must update some keepalive status somewhere to generate offline messages */
+		return ST_OK;
+	}
+
 	log_event_to_database(message, conn, prom, code, ptr);
+	jsonbot_notify(message, conn, prom, code, ptr);
 
 	talloc_free(message);
 
@@ -159,7 +160,7 @@ int main(int argc, char **argv) {
 	STATUS rv;
 	FILE *pidfile;
 	pid_t pid;
-	configuration *conf;
+	const configuration *conf;
 
 	set_process_name(argv[0]);
 
@@ -236,7 +237,7 @@ int main(int argc, char **argv) {
 
 		NO_MEM_RETURN(pkt);
 
-		n = recvfrom(sock, &buf, 1024, 0, (struct sockaddr *) &from, &fromlen);
+		n = recvfrom(sock, buf, 1024, 0, (struct sockaddr *) &from, &fromlen);
 		if (n < 0) {
 			DEBUG( 0, "Error when storing packet in buffer!");
 			talloc_free(pkt);

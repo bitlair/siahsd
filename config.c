@@ -23,7 +23,7 @@ const char *process_name = NULL;
 struct rsa_public_key *public_key = NULL;
 struct rsa_private_key *private_key = NULL;
 
-configuration *get_conf(void) {
+const configuration *get_conf(void) {
 	return conf;
 }
 
@@ -111,6 +111,31 @@ STATUS read_configuration_file(TALLOC_CTX *mem_ctx)
 		fprintf(stderr, "No pid file supplied in the configuration.\n");
 		return ST_CONFIGURATION_ERROR;
 	}
+	conf->jsonbot_address = g_key_file_get_string(keyfile, "jsonbot", "address", &error);
+	if (error) {
+		fprintf(stderr, "No jsonbot address supplied in the configuration.\n");
+		return ST_CONFIGURATION_ERROR;
+	}
+	conf->jsonbot_port = g_key_file_get_integer(keyfile, "jsonbot", "port", &error);
+	if (error) {
+		fprintf(stderr, "No jsonbot port supplied in the configuration.\n");
+		return ST_CONFIGURATION_ERROR;
+	}
+	conf->jsonbot_aeskey = g_key_file_get_string(keyfile, "jsonbot", "aes key", &error);
+	if (error) {
+		fprintf(stderr, "No jsonbot aes key supplied in the configuration.\n");
+		return ST_CONFIGURATION_ERROR;
+	}
+	conf->jsonbot_password = g_key_file_get_string(keyfile, "jsonbot", "password", &error);
+	if (error) {
+		fprintf(stderr, "No jsonbot password supplied in the configuration.\n");
+		return ST_CONFIGURATION_ERROR;
+	}
+	conf->jsonbot_privmsg_to = g_key_file_get_string(keyfile, "jsonbot", "privmsg to", &error);
+	if (error) {
+		fprintf(stderr, "No jsonbot privsmg to supplied in the configuration.\n");
+		return ST_CONFIGURATION_ERROR;
+	}
 	conf->foreground = g_key_file_get_boolean(keyfile, "siahsd", "foreground", &error);
 	if (error) {
 		conf->foreground = false;
@@ -119,6 +144,7 @@ STATUS read_configuration_file(TALLOC_CTX *mem_ctx)
 	conf->siahs_port = g_key_file_get_integer(keyfile, "siahs", "port", &error);
 	conf->secip_port = g_key_file_get_integer(keyfile, "secip", "port", &error);
 	conf->rsa_key_file = g_key_file_get_string(keyfile, "secip", "rsa key file", &error);
+
 
 	return ST_OK;
 }

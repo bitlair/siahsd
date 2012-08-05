@@ -26,7 +26,7 @@ STATUS debug(int loglevel, const char *location, const char *function, ...)
 	struct tm *timeinfo;
 	size_t s;
 	FILE *logfile;
-	configuration *conf = get_conf();
+	const configuration *conf = get_conf();
 
 	if (loglevel > conf->log_level) {
 		return ST_OK;
