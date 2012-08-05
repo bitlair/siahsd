@@ -15,6 +15,11 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+/* TODO:
+ * - Have each event protocol definition get its own configuration directives
+ */
+
 #include "includes.h"
 
 /* My global state */
@@ -22,6 +27,10 @@ configuration *conf = NULL;
 const char *process_name = NULL;
 struct rsa_public_key *public_key = NULL;
 struct rsa_private_key *private_key = NULL;
+
+configuration *get_modifiable_conf(void) {
+	return conf;
+}
 
 const configuration *get_conf(void) {
 	return conf;
@@ -51,100 +60,107 @@ STATUS set_rsa_keys(struct rsa_public_key *pub, struct rsa_private_key *priv) {
 	return ST_OK;
 }
 
+STATUS read_rsa_keys(void) {
+	int res;
+	FILE *file;
+	uint8_t buf[1024];
+	struct rsa_private_key *priv;
+	struct rsa_public_key *pub;
+	uint8_t *buffer = NULL;
+	size_t n, size=0;
+
+	priv = talloc(conf, struct rsa_private_key);
+	pub = talloc(conf, struct rsa_public_key);
+
+	rsa_public_key_init (pub);
+	rsa_private_key_init (priv);
+
+	file = fopen(conf->rsa_key_file, "r");
+	if (file == NULL) {
+		DEBUG(0, "Can't open configured rsa key file: %s", conf->rsa_key_file);
+		exit(ST_CONFIGURATION_ERROR);
+	}
+
+	while (1) {
+		n = fread(&buf, 1, 1024, file);
+		buffer = talloc_realloc(conf, buffer, uint8_t, size + n);
+		memcpy(buffer + size, buf, n);
+		size += n;
+		if (n < 1024)
+			break;
+	}
+
+	fclose(file);
+
+	res = rsa_keypair_from_sexp(pub, priv, 0, size, buffer);
+
+	conf->public_key = pub;
+	conf->private_key = priv;
+
+	return res;
+}
 
 STATUS read_configuration_file(TALLOC_CTX *mem_ctx)
 {
 	GError *error = NULL;
-	GKeyFile *keyfile = g_key_file_new ();
-
-	if (!g_key_file_load_from_file (keyfile, CONFIGFILE, 0, &error)) {
-		g_error (error->message);
-		return ST_CONFIGURATION_ERROR;
-	}
+	char *buf, *ptr;
 
 	conf = talloc(mem_ctx, configuration);
 	NO_MEM_RETURN(conf);
 
-	conf->database_host = g_key_file_get_string(keyfile, "database",
-                                                  "host", &error);
-	if (error) {
-		fprintf(stderr, "No database host supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->database_name = g_key_file_get_string(keyfile, "database",
-                                                  "name", &error);
-	if (error) {
-		fprintf(stderr, "No database name supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->database_driver = g_key_file_get_string(keyfile, "database",
-                                                  "driver", &error);
-	if (error) {
-		fprintf(stderr, "No database driver supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->database_username = g_key_file_get_string(keyfile, "database",
-                                                  "username", &error);
-	if (error) {
-		fprintf(stderr, "No database username supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->database_password = g_key_file_get_string(keyfile, "database",
-                                                  "password", &error);
-	if (error) {
-		fprintf(stderr, "No database password supplied in the configuration.\n");
+ 	conf->keyfile = g_key_file_new ();
+
+	if (!g_key_file_load_from_file (conf->keyfile, CONFIGFILE, 0, &error)) {
+		g_error (error->message);
 		return ST_CONFIGURATION_ERROR;
 	}
 
-	conf->log_file = g_key_file_get_string(keyfile, "siahsd", "log file", &error);
+	buf = g_key_file_get_string(conf->keyfile, "siahsd", "event handlers", &error);
 	if (error) {
 		fprintf(stderr, "No log file supplied in the configuration.\n");
 		return ST_CONFIGURATION_ERROR;
 	}
-	conf->log_level = g_key_file_get_integer(keyfile, "siahsd", "log level", &error);
+
+	DEBUG(0, "%s\n", buf);
+	/* Initialize the required event handler backends */
+	ptr = strtok(buf, " ");
+	if (ptr != NULL) {
+		do {
+			DEBUG(0, "%s\n", ptr);
+			if (strcmp(ptr, "database") == 0) {
+				database_init();
+			} else if (strcmp(ptr, "jsonbot") == 0) {
+				jsonbot_init();
+			}
+		} while((ptr = strtok(NULL, " ")) != NULL);
+	}
+
+	conf->log_file = g_key_file_get_string(conf->keyfile, "siahsd", "log file", &error);
+	if (error) {
+		fprintf(stderr, "No log file supplied in the configuration.\n");
+		return ST_CONFIGURATION_ERROR;
+	}
+	conf->log_level = g_key_file_get_integer(conf->keyfile, "siahsd", "log level", &error);
 	if (error) {
 		fprintf(stderr, "No log level supplied in the configuration.\n");
 		return ST_CONFIGURATION_ERROR;
 	}
-	conf->pid_file = g_key_file_get_string(keyfile, "siahsd", "pid file", &error);
+	conf->pid_file = g_key_file_get_string(conf->keyfile, "siahsd", "pid file", &error);
 	if (error) {
 		fprintf(stderr, "No pid file supplied in the configuration.\n");
 		return ST_CONFIGURATION_ERROR;
 	}
-	conf->jsonbot_address = g_key_file_get_string(keyfile, "jsonbot", "address", &error);
-	if (error) {
-		fprintf(stderr, "No jsonbot address supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->jsonbot_port = g_key_file_get_integer(keyfile, "jsonbot", "port", &error);
-	if (error) {
-		fprintf(stderr, "No jsonbot port supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->jsonbot_aeskey = g_key_file_get_string(keyfile, "jsonbot", "aes key", &error);
-	if (error) {
-		fprintf(stderr, "No jsonbot aes key supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->jsonbot_password = g_key_file_get_string(keyfile, "jsonbot", "password", &error);
-	if (error) {
-		fprintf(stderr, "No jsonbot password supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->jsonbot_privmsg_to = g_key_file_get_string(keyfile, "jsonbot", "privmsg to", &error);
-	if (error) {
-		fprintf(stderr, "No jsonbot privsmg to supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->foreground = g_key_file_get_boolean(keyfile, "siahsd", "foreground", &error);
+
+	conf->foreground = g_key_file_get_boolean(conf->keyfile, "siahsd", "foreground", &error);
 	if (error) {
 		conf->foreground = false;
 	}
-	/* Optional parameters are protocol-specific */
-	conf->siahs_port = g_key_file_get_integer(keyfile, "siahs", "port", &error);
-	conf->secip_port = g_key_file_get_integer(keyfile, "secip", "port", &error);
-	conf->rsa_key_file = g_key_file_get_string(keyfile, "secip", "rsa key file", &error);
 
+	/* Optional parameters are protocol-specific */
+	/* FIXME Warn the user when these aren't configured */
+	conf->siahs_port = g_key_file_get_integer(conf->keyfile, "siahs", "port", &error);
+	conf->secip_port = g_key_file_get_integer(conf->keyfile, "secip", "port", &error);
+	conf->rsa_key_file = g_key_file_get_string(conf->keyfile, "secip", "rsa key file", &error);
 
 	return ST_OK;
 }

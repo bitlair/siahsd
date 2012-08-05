@@ -18,55 +18,15 @@
 #include "includes.h"
 #include "build/ndr_secip.h"
 
-static int read_rsa_keys(void) {
-	int res;
-	FILE *file;
-	uint8_t buf[1024];
-	struct rsa_private_key *priv;
-	struct rsa_public_key *pub;
-	const configuration *conf = get_conf();
-	uint8_t *buffer = NULL;
-	size_t n, size=0;
 
-	priv = talloc(conf, struct rsa_private_key);
-	pub = talloc(conf, struct rsa_public_key);
-
-	rsa_public_key_init (pub);
-	rsa_private_key_init (priv);
-
-	file = fopen(conf->rsa_key_file, "r");
-	if (file == NULL) {
-		DEBUG(0, "Can't open configured rsa key file: %s", conf->rsa_key_file);
-		exit(ST_CONFIGURATION_ERROR);
-	}
-
-	while (1) {
-		n = fread(&buf, 1, 1024, file);
-		buffer = talloc_realloc(conf, buffer, uint8_t, size + n);
-		memcpy(buffer + size, buf, n);
-		size += n;
-		if (n < 1024)
-			break;
-	}
-
-	fclose(file);
-
-	res = rsa_keypair_from_sexp(pub, priv, 0, size, buffer);
-
-	set_rsa_keys(pub, priv);
-
-	return res;
-}
-
-STATUS send_ppk_com(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in from, struct secip_packet *pkt) {
+static STATUS send_ppk_com(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in from, struct secip_packet *pkt) {
 	struct secip_setup_packet *setup_pkt;
 	struct secip_out_packet *ppk_com;
 	DATA_BLOB raw_pkt, raw_setup_pkt;
 	enum ndr_err_code ndr_err;
 	size_t n;
-	struct rsa_private_key *priv;
-	struct rsa_public_key *pub;
 	size_t count;
+	const configuration *conf = get_conf();
 
 
 	setup_pkt = talloc_zero(mem_ctx, struct secip_setup_packet);
@@ -78,9 +38,7 @@ STATUS send_ppk_com(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in from, stru
 	memcpy(ppk_com->device_id, "MyFirstAlarm[TM]", strlen("MyFirstAlarm[TM]"));
 	ppk_com->msg.ppk_com.session_id = 0;
 
-	get_rsa_keys(&pub, &priv);
-
-	mpz_export(&ppk_com->msg.ppk_com.rsa_key, &count, 1, 4, 1, 0, pub->n);
+	mpz_export(&ppk_com->msg.ppk_com.rsa_key, &count, 1, 4, 1, 0, conf->public_key->n);
 	DEBUG(0, "RSA Words written: %u", count);
 
 	printf("%s\n", ndr_print_struct_string(pkt,(ndr_print_fn_t)ndr_print_secip_out_packet, "ppk_com packet", ppk_com));
@@ -116,7 +74,6 @@ int main (int argc, char **argv) {
 	struct sockaddr_in server;
 	struct sockaddr_in from;
 	TALLOC_CTX *mem_ctx;
-	dbi_conn conn;
 	STATUS rv;
 	FILE *pidfile;
 	pid_t pid;
@@ -176,11 +133,6 @@ int main (int argc, char **argv) {
 	DEBUG(0, "Started %s and waiting for SecIP packets on port %d", 
 	         get_process_name(), conf->secip_port);
 
-	/* Open a connection to the database */
-	rv = connect_to_database(&conn);
-	if (rv != ST_OK)
-		return rv;
-	
 	/*
 	 * Wait for packets
 	 */

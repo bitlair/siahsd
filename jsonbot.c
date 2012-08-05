@@ -21,7 +21,7 @@
 #include <nettle/aes.h>
 
 
-STATUS jsonbot_notify(TALLOC_CTX *mem_ctx, dbi_conn conn, const char *prom, const char *code, const char *description)
+STATUS jsonbot_notify(TALLOC_CTX *mem_ctx, const char *prom, const char *code, const char *description)
 {
 	int sockfd;
 	struct sockaddr_in servaddr;
@@ -74,6 +74,43 @@ STATUS jsonbot_notify(TALLOC_CTX *mem_ctx, dbi_conn conn, const char *prom, cons
 	}
 
 	talloc_free(outtext);
+
+	return ST_OK;
+}
+
+STATUS jsonbot_init(void) {
+	GError *error = NULL;
+	configuration *conf = get_modifiable_conf();
+
+	conf->jsonbot_address = g_key_file_get_string(conf->keyfile, "jsonbot", "address", &error);
+	if (error) {
+		fprintf(stderr, "No jsonbot address supplied in the configuration.\n");
+		return ST_CONFIGURATION_ERROR;
+	}
+	conf->jsonbot_port = g_key_file_get_integer(conf->keyfile, "jsonbot", "port", &error);
+	if (error) {
+		fprintf(stderr, "No jsonbot port supplied in the configuration.\n");
+		return ST_CONFIGURATION_ERROR;
+	}
+	conf->jsonbot_aeskey = g_key_file_get_string(conf->keyfile, "jsonbot", "aes key", &error);
+	if (error) {
+		fprintf(stderr, "No jsonbot aes key supplied in the configuration.\n");
+		return ST_CONFIGURATION_ERROR;
+	}
+	conf->jsonbot_password = g_key_file_get_string(conf->keyfile, "jsonbot", "password", &error);
+	if (error) {
+		fprintf(stderr, "No jsonbot password supplied in the configuration.\n");
+		return ST_CONFIGURATION_ERROR;
+	}
+	conf->jsonbot_privmsg_to = g_key_file_get_string(conf->keyfile, "jsonbot", "privmsg to", &error);
+	if (error) {
+		fprintf(stderr, "No jsonbot privsmg to supplied in the configuration.\n");
+		return ST_CONFIGURATION_ERROR;
+	}
+
+	conf->event_handlers = talloc_realloc(conf, conf->event_handlers, event_function, conf->event_handler_cnt+1);
+	conf->event_handlers[conf->event_handler_cnt] = jsonbot_notify;
+	conf->event_handler_cnt++;
 
 	return ST_OK;
 }

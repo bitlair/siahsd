@@ -18,6 +18,8 @@
 #include "includes.h"
 
 
+static dbi_conn conn;
+
 /*
  * talloc_quoted_string escapes quotes in a string and encapsulates it in quotes.
  * It returns a pointer to talloc'ed memory, the quoted string.
@@ -45,7 +47,7 @@ static char *talloc_quoted_string(TALLOC_CTX *mem_ctx, const char *string) {
 	return ret;
 }
 
-STATUS log_event_to_database(TALLOC_CTX *mem_ctx, dbi_conn conn, const char *prom, const char *code, const char *description) {
+STATUS log_event_to_database(TALLOC_CTX *mem_ctx, const char *prom, const char *code, const char *description) {
 	char *quoted_prom;
 	char *quoted_code;
 	char *quoted_long_code;
@@ -73,22 +75,60 @@ STATUS log_event_to_database(TALLOC_CTX *mem_ctx, dbi_conn conn, const char *pro
 	return ST_OK;
 }
 
-STATUS connect_to_database(dbi_conn *conn)
+
+
+STATUS database_init(void)
 {
-	const configuration *conf = get_conf();
+	configuration *conf = get_modifiable_conf();
+	GError *error = NULL;
+
+	conf->database_host = g_key_file_get_string(conf->keyfile, "database",
+												"host", &error);
+	if (error) {
+		fprintf(stderr, "No database host supplied in the configuration.\n");
+		return ST_CONFIGURATION_ERROR;
+	}
+	conf->database_name = g_key_file_get_string(conf->keyfile, "database",
+												"name", &error);
+	if (error) {
+		fprintf(stderr, "No database name supplied in the configuration.\n");
+		return ST_CONFIGURATION_ERROR;
+	}
+	conf->database_driver = g_key_file_get_string(conf->keyfile, "database",
+												  "driver", &error);
+	if (error) {
+		fprintf(stderr, "No database driver supplied in the configuration.\n");
+		return ST_CONFIGURATION_ERROR;
+	}
+	conf->database_username = g_key_file_get_string(conf->keyfile, "database",
+													"username", &error);
+	if (error) {
+		fprintf(stderr, "No database username supplied in the configuration.\n");
+		return ST_CONFIGURATION_ERROR;
+	}
+	conf->database_password = g_key_file_get_string(conf->keyfile, "database",
+													"password", &error);
+	if (error) {
+		fprintf(stderr, "No database password supplied in the configuration.\n");
+		return ST_CONFIGURATION_ERROR;
+	}
+
+	conf->event_handlers = talloc_realloc(conf, conf->event_handlers, event_function, conf->event_handler_cnt+1);
+	conf->event_handlers[conf->event_handler_cnt] = log_event_to_database;
+	conf->event_handler_cnt++;
 
 	DEBUG(1, "Connecting to %s database %s at %s as user %s", conf->database_driver, 
 		conf->database_name, conf->database_host, conf->database_username);
 
 	dbi_initialize(NULL);
-	*conn = dbi_conn_new(conf->database_driver);
-	dbi_conn_set_option(*conn, "host", conf->database_host);
-	dbi_conn_set_option(*conn, "username", conf->database_username);
-	dbi_conn_set_option(*conn, "password", conf->database_password);
-	dbi_conn_set_option(*conn, "dbname", conf->database_name);
-	dbi_conn_set_option(*conn, "encoding", "UTF-8");
+	conn = dbi_conn_new(conf->database_driver);
+	dbi_conn_set_option(conn, "host", conf->database_host);
+	dbi_conn_set_option(conn, "username", conf->database_username);
+	dbi_conn_set_option(conn, "password", conf->database_password);
+	dbi_conn_set_option(conn, "dbname", conf->database_name);
+	dbi_conn_set_option(conn, "encoding", "UTF-8");
 
-	if (dbi_conn_connect(*conn) < 0) {
+	if (dbi_conn_connect(conn) < 0) {
 		DEBUG(0, "Could not connect to the database");
 		return ST_DATABASE_FAILURE;
 	} 

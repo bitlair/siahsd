@@ -33,8 +33,11 @@ STATUS debug(int loglevel, const char *location, const char *function, ...)
 	}
 
 	logfile = fopen(conf->log_file, "a");
-	if (logfile == NULL && conf->foreground) {
-		fprintf(stderr, "Error opening log file: %s\n", strerror(errno));
+	if (logfile == NULL) {
+		if (conf->foreground) {
+			fprintf(stderr, "Error opening log file: %s\n", strerror(errno));
+		}
+		return ST_GENERAL_FAILURE;
 	}
 
 	time(&rawtime);

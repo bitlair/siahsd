@@ -18,4 +18,5 @@
 */
 
 
-STATUS jsonbot_notify(TALLOC_CTX *mem_ctx, dbi_conn conn, const char *prom, const char *code, const char *description);
+STATUS jsonbot_notify(TALLOC_CTX *mem_ctx, const char *prom, const char *code, const char *description);
+STATUS jsonbot_init(void);

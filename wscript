@@ -90,7 +90,7 @@ def configure(conf):
 def build(bld):
     bld.stlib(source="database.c", target="database", use='glib-2.0')
     bld.stlib(source="status.c", target="status", use='glib-2.0')
-    bld.stlib(source="config.c", target="config", use='glib-2.0')
+    bld.stlib(source="config.c", target="config", use='glib-2.0 database jsonbot')
     bld.stlib(source="sia.c", target="sia", use='glib-2.0')
     bld.stlib(source="jsonbot.c", target="jsonbot", use='glib-2.0')
 

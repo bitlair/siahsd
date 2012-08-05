@@ -34,12 +34,14 @@
  * and writes the event to the database.
  * It returns nothing.
  */
-STATUS parse_message(TALLOC_CTX *mem_ctx, dbi_conn conn, struct siahs_packet *pkt) {
+STATUS parse_message(TALLOC_CTX *mem_ctx, struct siahs_packet *pkt) {
 	char *message = talloc_strdup(mem_ctx, pkt->message + strlen("MESSAGE "));
 	char *ptr = message;
 	char *prom = ptr;
 	char *pkt_prom;
 	char *code;
+	const configuration *conf = get_conf();
+	uint8_t i;
 
 	NO_MEM_RETURN(message);
 
@@ -75,8 +77,10 @@ STATUS parse_message(TALLOC_CTX *mem_ctx, dbi_conn conn, struct siahs_packet *pk
 		return ST_OK;
 	}
 
-	log_event_to_database(message, conn, prom, code, ptr);
-	jsonbot_notify(message, conn, prom, code, ptr);
+	/* Dispatch all configured event handlers */
+	for (i = 0; conf->event_handlers[i] != NULL; i++) {
+		conf->event_handlers[i](message, prom, code, ptr);
+	}
 
 	talloc_free(message);
 
@@ -156,7 +160,6 @@ int main(int argc, char **argv) {
 	struct sockaddr_in server;
 	struct sockaddr_in from;
 	TALLOC_CTX *mem_ctx;
-	dbi_conn conn;
 	STATUS rv;
 	FILE *pidfile;
 	pid_t pid;
@@ -215,11 +218,6 @@ int main(int argc, char **argv) {
 
 	DEBUG(0, "Started %s and waiting for SIA-HS packets on port %d", 
 	         get_process_name(), conf->siahs_port);
-
-	/* Open a connection to the database */
-	rv = connect_to_database(&conn);
-	if (rv != ST_OK)
-		return rv;
 
 	/*
 	 * Wait for packets
@@ -306,7 +304,7 @@ int main(int argc, char **argv) {
 		} else if (strncmp(pkt->message, "MESSAGE ", strlen("MESSAGE ")) == 0) {
 
 			send_reply(pkt, sock, from, pkt, "ACKNOWLEDGE MESSAGE");
-			parse_message(pkt, conn, pkt);
+			parse_message(pkt, pkt);
 
 		} else {
 			DEBUG(0, "Could not parse this message:\n"
