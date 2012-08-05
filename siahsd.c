@@ -139,7 +139,7 @@ STATUS send_reply(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in from, struct
 	*(uint16_t *)&reply[reply_len - 2] = htons(sum);
 
 
-	fprintf(stderr, "Sending %s sum %04x len %d\n", string, sum, reply_len - 4);
+	DEBUG(4, "Sending %s sum %04x len %d\n", string, sum, reply_len - 4);
 
 	n = sendto(sock, reply, reply_len, 0, (struct sockaddr *)&from, sizeof(from));
 
