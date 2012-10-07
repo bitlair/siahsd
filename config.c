@@ -93,6 +93,9 @@ STATUS read_rsa_keys(void) {
 	fclose(file);
 
 	res = rsa_keypair_from_sexp(pub, priv, 0, size, buffer);
+	if (!res) {
+		DEBUG(0, "Error reading the RSA keypair from the SEXP file");
+	}
 
 	conf->public_key = pub;
 	conf->private_key = priv;

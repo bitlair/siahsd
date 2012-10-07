@@ -84,7 +84,7 @@ def configure(conf):
     conf.check_cc(lib='gmp', uselib_store='nettle')
 
     # Purposefully at the bottom because waf configuration tests fail with -Wstrict-prototypes and -Werror
-    conf.env.CFLAGS = ['-O2', '-g', '-ggdb', '-std=c99', '-Wall', '-Wshadow', '-Wpointer-arith', '-Wcast-align', '-Wwrite-strings', '-Wdeclaration-after-statement', 
+    conf.env.CFLAGS = ['-O0', '-g', '-ggdb', '-std=c99', '-Wall', '-Wshadow', '-Wpointer-arith', '-Wcast-align', '-Wwrite-strings', '-Wdeclaration-after-statement', 
                       '-Werror-implicit-function-declaration', '-Wstrict-prototypes', '-Werror']
 
 def build(bld):
