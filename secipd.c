@@ -53,7 +53,6 @@ static STATUS send_ppk_com(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fro
 	}
 
 	mpz_export(&ppk_com->msg.ppk_com.rsa_key, &count, -1, 1, -1, 0, conf->public_key->n);
-	DEBUG(0, "RSA Words written: %u", count);
 
 	DEBUG(9, "%s", ndr_print_struct_string(pkt,(ndr_print_fn_t)ndr_print_secip_packet, "ppk_com packet", ppk_com));
 
@@ -279,7 +278,11 @@ static STATUS send_alarm_ack(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in f
 	DEBUG(0, "Got message: %s", message);
 
 	/* FIXME Hardcoded prom */
-	parse_siahs_message(pkt, "1337", message);
+	if (pkt->msg.alarm.protocol_identifier == SECIP_PROTO_SIAHS) {
+		parse_siahs_message(pkt, "1337", message);
+	} else {
+		DEBUG(0, "Unsupported subprotocol!");
+	}
 
 	comm_pkt = talloc(mem_ctx, struct secip_comm_packet);
 
@@ -430,7 +433,6 @@ static DATA_BLOB decrypt_aes_packet(TALLOC_CTX *mem_ctx, DATA_BLOB encrypted_blo
 
 	aes_decrypt(&aes, encrypted_blob.length-2, ret.data+2, encrypted_blob.data+2);
 
-	DEBUG(0, "Decrypted this packet maybe!");
 	return ret;
 }
 
@@ -568,12 +570,12 @@ int main (int argc, char **argv) {
 
 		ndr_err = ndr_pull_struct_blob_all(&data, pkt, pkt, (ndr_pull_flags_fn_t)ndr_pull_secip_packet);
 
-		if (ndr_err != NDR_ERR_SUCCESS) {
-			DEBUG(0, "Could not parse this packet");
+		if (ndr_err != NDR_ERR_SUCCESS && ndr_err != NDR_ERR_UNREAD_BYTES) {
+			DEBUG(0, "Could not parse this packet: %s", ndr_map_error2string(ndr_err));
+			DEBUG(0, "%s", ndr_print_struct_string(pkt,(ndr_print_fn_t)ndr_print_secip_packet, "packet", pkt));
+		} else {
+			DEBUG(9, "%s", ndr_print_struct_string(pkt,(ndr_print_fn_t)ndr_print_secip_packet, "packet", pkt));
 		}
-		DEBUG(9, "%s", ndr_print_struct_string(pkt,(ndr_print_fn_t)ndr_print_secip_packet, "packet", pkt));
-
-		DEBUG(0, "%x %x %x", pkt->connection_id, pkt->message_id, pkt->sequence_number);
 
 		if (pkt->message_id == SECIP_MSG_ATE_ENC && pkt->msg.ate_enc.session_id == 0x0000) {
 			send_ppk_com(pkt, sock, from, pkt);
