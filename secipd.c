@@ -15,9 +15,11 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include <nettle/aes.h>
+
 #include "includes.h"
 #include "build/ndr_secip.h"
-#include <nettle/aes.h>
+#include "siahs.h"
 
 /* FIXME Does not handle multiple connections.. should be per connection obviously!! */
 static uint8_t global_aes_key[16];
@@ -53,7 +55,7 @@ static STATUS send_ppk_com(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fro
 	mpz_export(&ppk_com->msg.ppk_com.rsa_key, &count, -1, 1, -1, 0, conf->public_key->n);
 	DEBUG(0, "RSA Words written: %u", count);
 
-	printf("%s\n", ndr_print_struct_string(pkt,(ndr_print_fn_t)ndr_print_secip_packet, "ppk_com packet", ppk_com));
+	DEBUG(9, "%s", ndr_print_struct_string(pkt,(ndr_print_fn_t)ndr_print_secip_packet, "ppk_com packet", ppk_com));
 
 	ndr_err = ndr_push_struct_blob(&raw_pkt, ppk_com, ppk_com, (ndr_push_flags_fn_t)ndr_push_secip_packet);
 
@@ -110,7 +112,7 @@ static STATUS send_arc_enc(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fro
 		arc_enc->msg.arc_enc.padding[i] = rand();
 	}
 
-	printf("%s\n", ndr_print_struct_string(mem_ctx, (ndr_print_fn_t)ndr_print_secip_packet, "arc_enc packet", arc_enc));
+	DEBUG(9, "%s", ndr_print_struct_string(mem_ctx, (ndr_print_fn_t)ndr_print_secip_packet, "arc_enc packet", arc_enc));
 
 	ndr_err = ndr_push_struct_blob(&raw_pkt, arc_enc, arc_enc, (ndr_push_flags_fn_t)ndr_push_secip_packet);
 
@@ -170,7 +172,7 @@ static STATUS send_psup_resp(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in f
 		psup_resp->msg.psup_resp.padding[i] = rand();
 	}
 
-	printf("%s\n", ndr_print_struct_string(mem_ctx, (ndr_print_fn_t)ndr_print_secip_packet, "psup_resp packet", psup_resp));
+	DEBUG(9, "%s", ndr_print_struct_string(mem_ctx, (ndr_print_fn_t)ndr_print_secip_packet, "psup_resp packet", psup_resp));
 
 	ndr_err = ndr_push_struct_blob(&raw_pkt, psup_resp, psup_resp, (ndr_push_flags_fn_t)ndr_push_secip_packet);
 
@@ -229,7 +231,7 @@ static STATUS send_pathcheck_resp(TALLOC_CTX *mem_ctx, int sock, struct sockaddr
 		pathcheck_resp->msg.pathcheck_resp.padding[i] = rand();
 	}
 
-	printf("%s\n", ndr_print_struct_string(mem_ctx, (ndr_print_fn_t)ndr_print_secip_packet, "pathcheck_resp packet", pathcheck_resp));
+	DEBUG(9, "%s", ndr_print_struct_string(mem_ctx, (ndr_print_fn_t)ndr_print_secip_packet, "pathcheck_resp packet", pathcheck_resp));
 
 	ndr_err = ndr_push_struct_blob(&raw_pkt, pathcheck_resp, pathcheck_resp, (ndr_push_flags_fn_t)ndr_push_secip_packet);
 
@@ -268,10 +270,16 @@ static STATUS send_alarm_ack(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in f
 	enum ndr_err_code ndr_err;
 	struct aes_ctx aes;
 	int i, n;
+	char *message;
 
 	/* FIXME DEATH TO THE GLOBALS! */
 	aes_set_encrypt_key(&aes, 16, global_aes_key);
 
+	message = talloc_strndup(pkt, (char *)pkt->msg.alarm.message, pkt->msg.alarm.length);
+	DEBUG(0, "Got message: %s", message);
+
+	/* FIXME Hardcoded prom */
+	parse_siahs_message(pkt, "1337", message);
 
 	comm_pkt = talloc(mem_ctx, struct secip_comm_packet);
 
@@ -288,7 +296,7 @@ static STATUS send_alarm_ack(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in f
 		alarm_ack->msg.alarm_ack.padding[i] = rand();
 	}
 
-	printf("%s\n", ndr_print_struct_string(mem_ctx, (ndr_print_fn_t)ndr_print_secip_packet, "alarm_ack packet", alarm_ack));
+	DEBUG(9, "%s\n", ndr_print_struct_string(mem_ctx, (ndr_print_fn_t)ndr_print_secip_packet, "alarm_ack packet", alarm_ack));
 
 	ndr_err = ndr_push_struct_blob(&raw_pkt, alarm_ack, alarm_ack, (ndr_push_flags_fn_t)ndr_push_secip_packet);
 
@@ -347,7 +355,7 @@ static STATUS send_poll_ack(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fr
 		poll_ack->msg.poll_ack.padding[i] = rand();
 	}
 
-	printf("%s\n", ndr_print_struct_string(mem_ctx, (ndr_print_fn_t)ndr_print_secip_packet, "poll_ack packet", poll_ack));
+	DEBUG(9, "%s", ndr_print_struct_string(mem_ctx, (ndr_print_fn_t)ndr_print_secip_packet, "poll_ack packet", poll_ack));
 
 	ndr_err = ndr_push_struct_blob(&raw_pkt, poll_ack, poll_ack, (ndr_push_flags_fn_t)ndr_push_secip_packet);
 
@@ -547,7 +555,7 @@ int main (int argc, char **argv) {
 			if (ndr_err != NDR_ERR_SUCCESS) {
 				DEBUG(0, "Could not parse this CRC packet");
 			}
-			printf("%s\n", ndr_print_struct_string(setup_pkt,(ndr_print_fn_t)ndr_print_secip_setup_packet, "setup packet", setup_pkt));
+			DEBUG(10, "%s", ndr_print_struct_string(setup_pkt,(ndr_print_fn_t)ndr_print_secip_setup_packet, "setup packet", setup_pkt));
 		} else if (data.length > 128) {
 			comm_pkt = talloc(pkt, struct secip_comm_packet);
 			ndr_err = ndr_pull_struct_blob_all(&data, pkt, comm_pkt, (ndr_pull_flags_fn_t)ndr_pull_secip_comm_packet);
@@ -555,7 +563,7 @@ int main (int argc, char **argv) {
 			if (ndr_err != NDR_ERR_SUCCESS) {
 				DEBUG(0, "Could not parse this CRC packet");
 			}
-			printf("%s\n", ndr_print_struct_string(comm_pkt,(ndr_print_fn_t)ndr_print_secip_comm_packet, "comm packet", comm_pkt));
+			DEBUG(10, "%s", ndr_print_struct_string(comm_pkt,(ndr_print_fn_t)ndr_print_secip_comm_packet, "comm packet", comm_pkt));
 		}
 
 		ndr_err = ndr_pull_struct_blob_all(&data, pkt, pkt, (ndr_pull_flags_fn_t)ndr_pull_secip_packet);
@@ -563,7 +571,7 @@ int main (int argc, char **argv) {
 		if (ndr_err != NDR_ERR_SUCCESS) {
 			DEBUG(0, "Could not parse this packet");
 		}
-		printf("%s\n", ndr_print_struct_string(pkt,(ndr_print_fn_t)ndr_print_secip_packet, "packet", pkt));
+		DEBUG(9, "%s", ndr_print_struct_string(pkt,(ndr_print_fn_t)ndr_print_secip_packet, "packet", pkt));
 
 		DEBUG(0, "%x %x %x", pkt->connection_id, pkt->message_id, pkt->sequence_number);
 

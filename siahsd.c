@@ -30,71 +30,12 @@
 
 
 /*
- * parse_message parses the string portion of the SIA-HS message
- * and writes the event to the database.
- * It returns nothing.
- */
-STATUS parse_message(TALLOC_CTX *mem_ctx, struct siahs_packet *pkt) {
-	char *message = talloc_strdup(mem_ctx, pkt->message + strlen("MESSAGE "));
-	char *ptr = message;
-	char *prom = ptr;
-	char *pkt_prom;
-	char *code;
-	const configuration *conf = get_conf();
-	uint8_t i;
-
-	NO_MEM_RETURN(message);
-
-	/* Grab the first part, the prom */
-	while (*ptr != '\0' && *ptr != 'N') {
-		ptr++;
-	}
-	*ptr++ = '\0';
-
-	/* Grab the second part, SIA code */
-	code = ptr;
-	while (*ptr != '\0' && *ptr != ',') {
-		ptr++;
-	}
-	if (*ptr != '\0') *ptr++ = '\0';
-
-	/* The remaining ptr contains the human readable description string */
-
-	/* Assert that string prom is identical to hex representation of pkt->prom */
-	pkt_prom = talloc_asprintf(message, "%04x", pkt->prom);
-
-	NO_MEM_RETURN(pkt_prom);
-
-	if (strcmp(pkt_prom, prom) != 0) {
-		return ST_ASSERTION_FAILED;
-	}
-
-	
-	/* Ignore alive! messages */
-	if (strcmp(code, "alive!") == 0) {
-		DEBUG(2, "Got keepalive packet from prom %s", prom);
-		/* FIXME We must update some keepalive status somewhere to generate offline messages */
-		return ST_OK;
-	}
-
-	/* Dispatch all configured event handlers */
-	for (i = 0; conf->event_handlers[i] != NULL; i++) {
-		conf->event_handlers[i](message, prom, code, ptr);
-	}
-
-	talloc_free(message);
-
-	return ST_OK;
-}
-
-
-/*
  * send_reply sends a reply to a SIA-HS transmitter
  * It requires a memory context, the socket from which to reply, the socket address to reply to, the original packet
  * and a string with the reply message.
  * It returns nothing.
  */
-STATUS send_reply(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in from, struct siahs_packet *pkt, const char *string) {
+static STATUS send_reply(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in from, struct siahs_packet *pkt, const char *string) {
 	int n;
 	uint8_t *reply;
 	int i;
@@ -302,9 +243,11 @@ int main(int argc, char **argv) {
 			
 
 		} else if (strncmp(pkt->message, "MESSAGE ", strlen("MESSAGE ")) == 0) {
+			char *pkt_prom;
 
 			send_reply(pkt, sock, from, pkt, "ACKNOWLEDGE MESSAGE");
-			parse_message(pkt, pkt);
+			pkt_prom = talloc_asprintf(pkt, "%04x", pkt->prom);
+			parse_siahs_message(pkt, pkt_prom, pkt->message + strlen("MESSAGE "));
 
 		} else {
 			DEBUG(0, "Could not parse this message:\n"
