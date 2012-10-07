@@ -37,7 +37,7 @@ static STATUS send_ppk_com(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fro
 
 	ppk_com = talloc(setup_pkt, struct secip_packet);
 	ppk_com->pad = 0;
-	ppk_com->connection_id = 0x1337;
+	ppk_com->connection_id = 0x1337; /* FIXME */
 	ppk_com->message_id = SECIP_MSG_PPK_COM;
 	ppk_com->sequence_number = 1;
 	ppk_com->msg.ppk_com.session_id = 0;
@@ -98,7 +98,8 @@ static STATUS send_arc_enc(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fro
 
 	arc_enc = talloc_zero(setup_pkt, struct secip_packet);
 	arc_enc->pad = 0;
-	arc_enc->connection_id = 0x1337;
+	arc_enc->connection_id = 0x1337; /* FIXME */
+	memcpy(arc_enc->device_id, "Bitlair SecIPd!", 16);
 	arc_enc->message_id = SECIP_MSG_ARC_ENC;
 	arc_enc->sequence_number = 2;
 
@@ -141,7 +142,244 @@ static STATUS send_arc_enc(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fro
 	return ST_OK;
 }
 
-DATA_BLOB decrypt_setup_packet(TALLOC_CTX *mem_ctx, DATA_BLOB encrypted_blob) {
+static STATUS send_psup_resp(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in from, struct secip_packet *pkt) {
+	DATA_BLOB raw_pkt, raw_comm_pkt, crypted_comm_pkt;
+	struct secip_comm_packet *comm_pkt;
+	struct secip_packet *psup_resp;
+	enum ndr_err_code ndr_err;
+	struct aes_ctx aes;
+	int i, n;
+
+	/* FIXME DEATH TO THE GLOBALS! */
+	aes_set_encrypt_key(&aes, 16, global_aes_key);
+
+	comm_pkt = talloc(mem_ctx, struct secip_comm_packet);
+
+	psup_resp = talloc_zero(comm_pkt, struct secip_packet);
+	psup_resp->pad = 0;
+	psup_resp->connection_id = 0x1337; /* FIXME */
+	memcpy(psup_resp->device_id, "Bitlair SecIPd!", 16);
+	psup_resp->message_id = SECIP_MSG_PATH_SUPERVISION_RESPONSE;
+	psup_resp->sequence_number = pkt->sequence_number;
+
+	psup_resp->msg.psup_resp.error_code = SECIP_ERR_SUCCESS; /* FIXME: Make sure we actually supervise */
+	psup_resp->msg.psup_resp.path_id = pkt->msg.psup_req.path_id;
+	psup_resp->msg.psup_resp.interval_seconds = pkt->msg.psup_req.interval_seconds;
+	
+	for (i = 0; i < 69; i++) {
+		psup_resp->msg.psup_resp.padding[i] = rand();
+	}
+
+	printf("%s\n", ndr_print_struct_string(mem_ctx, (ndr_print_fn_t)ndr_print_secip_packet, "psup_resp packet", psup_resp));
+
+	ndr_err = ndr_push_struct_blob(&raw_pkt, psup_resp, psup_resp, (ndr_push_flags_fn_t)ndr_push_secip_packet);
+
+	if (ndr_err != NDR_ERR_SUCCESS) {
+		DEBUG(0, "Oh holy shitstorm! That didn't work!");
+		return ST_GENERAL_FAILURE;
+	}
+	
+	memcpy(comm_pkt->raw_packet, raw_pkt.data, raw_pkt.length);
+	for (i = 0; i < 30; i++) {
+		comm_pkt->padding[i] = rand();
+	}
+
+	ndr_err = ndr_push_struct_blob(&raw_comm_pkt, comm_pkt, comm_pkt, (ndr_push_flags_fn_t)ndr_push_secip_comm_packet);
+
+	if (ndr_err != NDR_ERR_SUCCESS) {
+		DEBUG(0, "Oh holy shitstorm! That didn't work!");
+		return ST_GENERAL_FAILURE;
+	}
+
+	crypted_comm_pkt.data = talloc_zero_array(mem_ctx, uint8_t, 258);
+	crypted_comm_pkt.length = 130;
+	memcpy(crypted_comm_pkt.data, raw_comm_pkt.data, 2);
+
+	aes_encrypt(&aes, raw_comm_pkt.length-2, crypted_comm_pkt.data+2, raw_comm_pkt.data+2);
+
+	n = sendto(sock, crypted_comm_pkt.data, crypted_comm_pkt.length, 0, (struct sockaddr *)&from, sizeof(from));
+
+	return ST_OK;
+}
+
+static STATUS send_pathcheck_resp(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in from, struct secip_packet *pkt) {
+	DATA_BLOB raw_pkt, raw_comm_pkt, crypted_comm_pkt;
+	struct secip_comm_packet *comm_pkt;
+	struct secip_packet *pathcheck_resp;
+	enum ndr_err_code ndr_err;
+	struct aes_ctx aes;
+	int i, n;
+
+	/* FIXME DEATH TO THE GLOBALS! */
+	aes_set_encrypt_key(&aes, 16, global_aes_key);
+
+
+	comm_pkt = talloc(mem_ctx, struct secip_comm_packet);
+
+	pathcheck_resp = talloc_zero(comm_pkt, struct secip_packet);
+	pathcheck_resp->pad = 0;
+	pathcheck_resp->connection_id = 0x1337; /* FIXME */
+	memcpy(pathcheck_resp->device_id, "Bitlair SecIPd!", 16);
+	pathcheck_resp->message_id = SECIP_MSG_PATH_SUPERVISION_RESPONSE;
+	pathcheck_resp->sequence_number = pkt->sequence_number;
+
+	pathcheck_resp->msg.pathcheck_resp.error_code = SECIP_ERR_PATHCHECK_NOT_SUPPORTED; /* FIXME */
+	
+	for (i = 0; i < 74; i++) {
+		pathcheck_resp->msg.pathcheck_resp.padding[i] = rand();
+	}
+
+	printf("%s\n", ndr_print_struct_string(mem_ctx, (ndr_print_fn_t)ndr_print_secip_packet, "pathcheck_resp packet", pathcheck_resp));
+
+	ndr_err = ndr_push_struct_blob(&raw_pkt, pathcheck_resp, pathcheck_resp, (ndr_push_flags_fn_t)ndr_push_secip_packet);
+
+	if (ndr_err != NDR_ERR_SUCCESS) {
+		DEBUG(0, "Oh holy shitstorm! That didn't work!");
+		return ST_GENERAL_FAILURE;
+	}
+	
+	memcpy(comm_pkt->raw_packet, raw_pkt.data, raw_pkt.length);
+	for (i = 0; i < 30; i++) {
+		comm_pkt->padding[i] = rand();
+	}
+
+	ndr_err = ndr_push_struct_blob(&raw_comm_pkt, comm_pkt, comm_pkt, (ndr_push_flags_fn_t)ndr_push_secip_comm_packet);
+
+	if (ndr_err != NDR_ERR_SUCCESS) {
+		DEBUG(0, "Oh holy shitstorm! That didn't work!");
+		return ST_GENERAL_FAILURE;
+	}
+
+	crypted_comm_pkt.data = talloc_zero_array(mem_ctx, uint8_t, 258);
+	crypted_comm_pkt.length = 130;
+	memcpy(crypted_comm_pkt.data, raw_comm_pkt.data, 2);
+
+	aes_encrypt(&aes, raw_comm_pkt.length-2, crypted_comm_pkt.data+2, raw_comm_pkt.data+2);
+
+	n = sendto(sock, crypted_comm_pkt.data, crypted_comm_pkt.length, 0, (struct sockaddr *)&from, sizeof(from));
+
+	return ST_OK;
+}
+
+static STATUS send_alarm_ack(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in from, struct secip_packet *pkt) {
+	DATA_BLOB raw_pkt, raw_comm_pkt, crypted_comm_pkt;
+	struct secip_comm_packet *comm_pkt;
+	struct secip_packet *alarm_ack;
+	enum ndr_err_code ndr_err;
+	struct aes_ctx aes;
+	int i, n;
+
+	/* FIXME DEATH TO THE GLOBALS! */
+	aes_set_encrypt_key(&aes, 16, global_aes_key);
+
+
+	comm_pkt = talloc(mem_ctx, struct secip_comm_packet);
+
+	alarm_ack = talloc_zero(comm_pkt, struct secip_packet);
+	alarm_ack->pad = 0;
+	alarm_ack->connection_id = 0x1337; /* FIXME */
+	memcpy(alarm_ack->device_id, "Bitlair SecIPd!", 16);
+	alarm_ack->message_id = SECIP_MSG_ALARM_ACKNOWLEDGE;
+	alarm_ack->sequence_number = pkt->sequence_number;
+
+	alarm_ack->msg.alarm_ack.error_code = SECIP_ERR_ACKNOWLEDGE;
+	
+	for (i = 0; i < 75; i++) {
+		alarm_ack->msg.alarm_ack.padding[i] = rand();
+	}
+
+	printf("%s\n", ndr_print_struct_string(mem_ctx, (ndr_print_fn_t)ndr_print_secip_packet, "alarm_ack packet", alarm_ack));
+
+	ndr_err = ndr_push_struct_blob(&raw_pkt, alarm_ack, alarm_ack, (ndr_push_flags_fn_t)ndr_push_secip_packet);
+
+	if (ndr_err != NDR_ERR_SUCCESS) {
+		DEBUG(0, "Oh holy shitstorm! That didn't work!");
+		return ST_GENERAL_FAILURE;
+	}
+	
+	memcpy(comm_pkt->raw_packet, raw_pkt.data, raw_pkt.length);
+	for (i = 0; i < 30; i++) {
+		comm_pkt->padding[i] = rand();
+	}
+
+	ndr_err = ndr_push_struct_blob(&raw_comm_pkt, comm_pkt, comm_pkt, (ndr_push_flags_fn_t)ndr_push_secip_comm_packet);
+
+	if (ndr_err != NDR_ERR_SUCCESS) {
+		DEBUG(0, "Oh holy shitstorm! That didn't work!");
+		return ST_GENERAL_FAILURE;
+	}
+
+	crypted_comm_pkt.data = talloc_zero_array(mem_ctx, uint8_t, 258);
+	crypted_comm_pkt.length = 130;
+	memcpy(crypted_comm_pkt.data, raw_comm_pkt.data, 2);
+
+	aes_encrypt(&aes, raw_comm_pkt.length-2, crypted_comm_pkt.data+2, raw_comm_pkt.data+2);
+
+	n = sendto(sock, crypted_comm_pkt.data, crypted_comm_pkt.length, 0, (struct sockaddr *)&from, sizeof(from));
+
+	return ST_OK;
+}
+
+static STATUS send_poll_ack(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in from, struct secip_packet *pkt) {
+	DATA_BLOB raw_pkt, raw_comm_pkt, crypted_comm_pkt;
+	struct secip_comm_packet *comm_pkt;
+	struct secip_packet *poll_ack;
+	enum ndr_err_code ndr_err;
+	struct aes_ctx aes;
+	int i, n;
+
+	/* FIXME DEATH TO THE GLOBALS! */
+	aes_set_encrypt_key(&aes, 16, global_aes_key);
+
+
+	comm_pkt = talloc(mem_ctx, struct secip_comm_packet);
+
+	poll_ack = talloc_zero(comm_pkt, struct secip_packet);
+	poll_ack->pad = 0;
+	poll_ack->connection_id = 0x1337; /* FIXME */
+	memcpy(poll_ack->device_id, "Bitlair SecIPd!", 16);
+	poll_ack->message_id = SECIP_MSG_PATH_SUPERVISION_RESPONSE;
+	poll_ack->sequence_number = pkt->sequence_number;
+
+	poll_ack->msg.pathcheck_resp.error_code = SECIP_ERR_SUCCESS; /* FIXME */
+	
+	for (i = 0; i < 73; i++) {
+		poll_ack->msg.poll_ack.padding[i] = rand();
+	}
+
+	printf("%s\n", ndr_print_struct_string(mem_ctx, (ndr_print_fn_t)ndr_print_secip_packet, "poll_ack packet", poll_ack));
+
+	ndr_err = ndr_push_struct_blob(&raw_pkt, poll_ack, poll_ack, (ndr_push_flags_fn_t)ndr_push_secip_packet);
+
+	if (ndr_err != NDR_ERR_SUCCESS) {
+		DEBUG(0, "Oh holy shitstorm! That didn't work!");
+		return ST_GENERAL_FAILURE;
+	}
+	
+	memcpy(comm_pkt->raw_packet, raw_pkt.data, raw_pkt.length);
+	for (i = 0; i < 30; i++) {
+		comm_pkt->padding[i] = rand();
+	}
+
+	ndr_err = ndr_push_struct_blob(&raw_comm_pkt, comm_pkt, comm_pkt, (ndr_push_flags_fn_t)ndr_push_secip_comm_packet);
+
+	if (ndr_err != NDR_ERR_SUCCESS) {
+		DEBUG(0, "Oh holy shitstorm! That didn't work!");
+		return ST_GENERAL_FAILURE;
+	}
+
+	crypted_comm_pkt.data = talloc_zero_array(mem_ctx, uint8_t, 258);
+	crypted_comm_pkt.length = 130;
+	memcpy(crypted_comm_pkt.data, raw_comm_pkt.data, 2);
+
+	aes_encrypt(&aes, raw_comm_pkt.length-2, crypted_comm_pkt.data+2, raw_comm_pkt.data+2);
+
+	n = sendto(sock, crypted_comm_pkt.data, crypted_comm_pkt.length, 0, (struct sockaddr *)&from, sizeof(from));
+
+	return ST_OK;
+}
+
+static DATA_BLOB decrypt_setup_packet(TALLOC_CTX *mem_ctx, DATA_BLOB encrypted_blob) {
 	const configuration *conf = get_conf();
 	mpz_t encrypted_data;
 	mpz_t decrypted_data;
@@ -171,7 +409,7 @@ DATA_BLOB decrypt_setup_packet(TALLOC_CTX *mem_ctx, DATA_BLOB encrypted_blob) {
 	return decrypted_blob;
 }
 
-DATA_BLOB decrypt_aes_packet(TALLOC_CTX *mem_ctx, DATA_BLOB encrypted_blob) {
+static DATA_BLOB decrypt_aes_packet(TALLOC_CTX *mem_ctx, DATA_BLOB encrypted_blob) {
 	static DATA_BLOB ret;
 	struct aes_ctx aes;
 
@@ -328,12 +566,19 @@ int main (int argc, char **argv) {
 		printf("%s\n", ndr_print_struct_string(pkt,(ndr_print_fn_t)ndr_print_secip_packet, "packet", pkt));
 
 		DEBUG(0, "%x %x %x", pkt->connection_id, pkt->message_id, pkt->sequence_number);
+
 		if (pkt->message_id == SECIP_MSG_ATE_ENC && pkt->msg.ate_enc.session_id == 0x0000) {
 			send_ppk_com(pkt, sock, from, pkt);
-		}
-
-		if (pkt->message_id == SECIP_MSG_PPK_REP) {
+		} else if (pkt->message_id == SECIP_MSG_PPK_REP) {
 			send_arc_enc(pkt, sock, from, pkt);
+		} else if (pkt->message_id == SECIP_MSG_PATH_SUPERVISION_REQUEST) {
+			send_psup_resp(pkt, sock, from, pkt);
+		} else if (pkt->message_id == SECIP_MSG_PATH_CHECK_REQUEST) {
+			send_pathcheck_resp(pkt, sock, from, pkt);
+		} else if (pkt->message_id == SECIP_MSG_ALARM) {
+			send_alarm_ack(pkt, sock, from, pkt);
+		} else if (pkt->message_id == SECIP_MSG_POLL_MESSAGE) {
+			send_poll_ack(pkt, sock, from, pkt);
 		}
 
 

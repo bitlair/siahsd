@@ -29,9 +29,20 @@ interface secip
 		SECIP_MSG_PPK_REP                      = 0x82,
 		SECIP_MSG_PATH_SUPERVISION_REQUEST     = 0x10,
 		SECIP_MSG_PATH_SUPERVISION_RESPONSE    = 0x90,
+		SECIP_MSG_PATH_CHECK_REQUEST           = 0x20,
+		SECIP_MSG_PATH_CHECK_RESPONSE          = 0xA0,
 		SECIP_MSG_POLL_MESSAGE                 = 0x11,
-		SECIP_MSG_POLL_ACKNOWLEDGE             = 0x91
+		SECIP_MSG_POLL_ACKNOWLEDGE             = 0x91,
+		SECIP_MSG_ALARM                        = 0x30,
+		SECIP_MSG_ALARM_ACKNOWLEDGE            = 0xB0
 	} secip_message;
+
+	typedef [public,enum8bit] enum {
+		SECIP_PROTO_SIA         = 0x01,
+		SECIP_PROTO_CONTACTID   = 0x02,
+		SECIP_PROTO_SCANCOM     = 0x03,
+		SECIP_PROTO_SIAHS       = 0x04
+	} secip_protocol;
 
 	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
 		[value(0)] uint16 session_id;
@@ -73,12 +84,58 @@ interface secip
 		uint8 padding[70];
 	} secip_psup_req;
 
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		secip_error error_code;
+		uint16 path_id;
+		uint32 interval_seconds;
+		uint8 padding[69];
+	} secip_psup_resp;
+
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		uint8 padding[76];
+	} secip_pathcheck_req;
+
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		secip_error error_code;
+		uint8 path_check_id;
+		uint8 padding[74];
+	} secip_pathcheck_resp;
+
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		secip_protocol protocol_identifier;
+		[range(0,97)] uint8 length;
+		int8 message[length];
+	} secip_alarm;
+
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		secip_error error_code;
+		uint8 padding[75];
+	} secip_alarm_ack;
+
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		uint16 path_check_id;
+		uint8 padding[74];
+	} secip_poll_message;
+
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		secip_error error_code;
+		uint16 path_check_id;
+		uint8 padding[73];
+	} secip_poll_ack;
+
 	typedef [nodiscriminant,public,flag(LIBNDR_FLAG_NOALIGN)] union {
 		[case(SECIP_MSG_ATE_ENC)] secip_ate_enc ate_enc;
 		[case(SECIP_MSG_PPK_COM)] secip_ppk_com ppk_com;
 		[case(SECIP_MSG_PPK_REP)] secip_ppk_rep ppk_rep;
 		[case(SECIP_MSG_ARC_ENC)] secip_arc_enc arc_enc;
 		[case(SECIP_MSG_PATH_SUPERVISION_REQUEST)] secip_psup_req psup_req;
+		[case(SECIP_MSG_PATH_SUPERVISION_RESPONSE)] secip_psup_resp psup_resp;
+		[case(SECIP_MSG_PATH_CHECK_REQUEST)] secip_pathcheck_req pathcheck_req;
+		[case(SECIP_MSG_PATH_CHECK_RESPONSE)] secip_pathcheck_resp pathcheck_resp;
+		[case(SECIP_MSG_ALARM)] secip_alarm alarm;
+		[case(SECIP_MSG_ALARM_ACKNOWLEDGE)] secip_alarm_ack alarm_ack;
+		[case(SECIP_MSG_POLL_MESSAGE)] secip_poll_message poll_message;
+		[case(SECIP_MSG_POLL_ACKNOWLEDGE)] secip_poll_ack poll_ack;
 	} secip_msg_union;
 
 	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
