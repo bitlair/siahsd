@@ -33,6 +33,11 @@ STATUS jsonbot_notify(TALLOC_CTX *mem_ctx, const char *prom, const char *code, c
 
 	conf = get_conf();
 
+    /* Ignore test reports */
+    if (strncmp(code, "RP", 2) == 0) {
+        return ST_OK;
+    }
+
 
 	aes_set_encrypt_key(&aes, strlen(conf->jsonbot_aeskey), (uint8_t *) conf->jsonbot_aeskey);
 
@@ -84,27 +89,27 @@ STATUS jsonbot_init(void) {
 
 	conf->jsonbot_address = g_key_file_get_string(conf->keyfile, "jsonbot", "address", &error);
 	if (error) {
-		fprintf(stderr, "No jsonbot address supplied in the configuration.\n");
+		fprintf(stderr, "Error parsing jsonbot address: (%d) %s.\n", error->code, error->message);
 		return ST_CONFIGURATION_ERROR;
 	}
 	conf->jsonbot_port = g_key_file_get_integer(conf->keyfile, "jsonbot", "port", &error);
 	if (error) {
-		fprintf(stderr, "No jsonbot port supplied in the configuration.\n");
+		fprintf(stderr, "Error parsing jsonbot port: (%d) %s.\n", error->code, error->message);
 		return ST_CONFIGURATION_ERROR;
 	}
 	conf->jsonbot_aeskey = g_key_file_get_string(conf->keyfile, "jsonbot", "aes key", &error);
 	if (error) {
-		fprintf(stderr, "No jsonbot aes key supplied in the configuration.\n");
+		fprintf(stderr, "Error parsing jsonbot aes key: (%d) %s.\n", error->code, error->message);
 		return ST_CONFIGURATION_ERROR;
 	}
 	conf->jsonbot_password = g_key_file_get_string(conf->keyfile, "jsonbot", "password", &error);
 	if (error) {
-		fprintf(stderr, "No jsonbot password supplied in the configuration.\n");
+		fprintf(stderr, "Error parsing jsonbot password: (%d) %s.\n", error->code, error->message);
 		return ST_CONFIGURATION_ERROR;
 	}
 	conf->jsonbot_privmsg_to = g_key_file_get_string(conf->keyfile, "jsonbot", "privmsg to", &error);
 	if (error) {
-		fprintf(stderr, "No jsonbot privsmg to supplied in the configuration.\n");
+		fprintf(stderr, "Error parsing jsonbot privmsg to: (%d) %s.\n", error->code, error->message);
 		return ST_CONFIGURATION_ERROR;
 	}
 

@@ -115,21 +115,47 @@ STATUS read_configuration_file(TALLOC_CTX *mem_ctx)
 
 	if (!g_key_file_load_from_file (conf->keyfile, CONFIGFILE, 0, &error)) {
 		g_error (error->message);
+        g_error_free(error);
 		return ST_CONFIGURATION_ERROR;
 	}
 
 	buf = g_key_file_get_string(conf->keyfile, "siahsd", "event handlers", &error);
 	if (error) {
-		fprintf(stderr, "No log file supplied in the configuration.\n");
+		fprintf(stderr, "No event handler supplied in the configuration.\n");
+        g_error_free(error);
 		return ST_CONFIGURATION_ERROR;
 	}
 
-	DEBUG(0, "%s\n", buf);
+	conf->log_file = g_key_file_get_string(conf->keyfile, "siahsd", "log file", &error);
+	if (error) {
+		fprintf(stderr, "No log file supplied in the configuration.\n");
+        g_error_free(error);
+		return ST_CONFIGURATION_ERROR;
+	}
+	conf->log_level = g_key_file_get_integer(conf->keyfile, "siahsd", "log level", &error);
+	if (error) {
+		fprintf(stderr, "No log level supplied in the configuration.\n");
+        g_error_free(error);
+		return ST_CONFIGURATION_ERROR;
+	}
+	conf->pid_file = g_key_file_get_string(conf->keyfile, "siahsd", "pid file", &error);
+	if (error) {
+		fprintf(stderr, "No pid file supplied in the configuration.\n");
+        g_error_free(error);
+		return ST_CONFIGURATION_ERROR;
+	}
+
+	conf->foreground = g_key_file_get_boolean(conf->keyfile, "siahsd", "foreground", &error);
+	if (error) {
+		conf->foreground = false;
+        g_error_free(error);
+        error = NULL;
+	}
+
 	/* Initialize the required event handler backends */
 	ptr = strtok(buf, " ");
 	if (ptr != NULL) {
 		do {
-			DEBUG(0, "%s\n", ptr);
 			if (strcmp(ptr, "database") == 0) {
 				database_init();
 			} else if (strcmp(ptr, "jsonbot") == 0) {
@@ -138,32 +164,23 @@ STATUS read_configuration_file(TALLOC_CTX *mem_ctx)
 		} while((ptr = strtok(NULL, " ")) != NULL);
 	}
 
-	conf->log_file = g_key_file_get_string(conf->keyfile, "siahsd", "log file", &error);
-	if (error) {
-		fprintf(stderr, "No log file supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->log_level = g_key_file_get_integer(conf->keyfile, "siahsd", "log level", &error);
-	if (error) {
-		fprintf(stderr, "No log level supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-	conf->pid_file = g_key_file_get_string(conf->keyfile, "siahsd", "pid file", &error);
-	if (error) {
-		fprintf(stderr, "No pid file supplied in the configuration.\n");
-		return ST_CONFIGURATION_ERROR;
-	}
-
-	conf->foreground = g_key_file_get_boolean(conf->keyfile, "siahsd", "foreground", &error);
-	if (error) {
-		conf->foreground = false;
-	}
-
 	/* Optional parameters are protocol-specific */
 	/* FIXME Warn the user when these aren't configured */
 	conf->siahs_port = g_key_file_get_integer(conf->keyfile, "siahs", "port", &error);
+    if (error) {
+        g_error_free(error);
+        error = NULL;
+    }
 	conf->secip_port = g_key_file_get_integer(conf->keyfile, "secip", "port", &error);
+    if (error) {
+        g_error_free(error);
+        error = NULL;
+    }
 	conf->rsa_key_file = g_key_file_get_string(conf->keyfile, "secip", "rsa key file", &error);
+    if (error) {
+        g_error_free(error);
+        error = NULL;
+    }
 
 	return ST_OK;
 }

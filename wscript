@@ -39,18 +39,19 @@ def configure(conf):
     # Check for glib
     conf.check_cfg(package='glib-2.0', uselib_store='glib-2.0',
                 args=['--cflags', '--libs'])
-
+    
     # Check for talloc
     conf.check_cfg(package='talloc', uselib_store='talloc',
-                args=['--cflags', '--libs'])
+                args=['--cflags', '--libs' ])
 
-    # Check for tevent (Needed for pkg-config of ndr)
-    conf.check_cfg(package='tevent', uselib_store='tevent',
-                args=['--cflags', '--libs'])
+    # Check for samba-4.0
+    conf.check_cfg(package='samba-util', uselib_store='samba',
+                args=['--cflags', '--libs' ])
 
     # Check for ndr
-    conf.check_cfg(package='ndr', uselib_store='ndr',
+    conf.check_cfg(package='ndr', uselib_store='samba',
                 args=['--cflags', '--libs'])
+
 
     # Check for headers
     conf.check(header_name='stdio.h', features='c cprogram')
@@ -69,19 +70,21 @@ def configure(conf):
 
 
     # Used libraries
-    conf.check(header_name='talloc.h', use='talloc', features='c cprogram')
+    conf.check(header_name='talloc.h', use='samba', features='c cprogram')
     conf.check(header_name='glib.h', use='glib-2.0', features='c cprogram')
     conf.check(header_name='glibconfig.h', use='glib-2.0', features='c cprogram')
 
     conf.check(header_name='dbi/dbi.h', features='c cprogram')
-
+    conf.check(header_name='util/data_blob.h', use='samba', features='c cprogram')
+    conf.check(header_name='core/ntstatus.h', use='samba', features='c cprogram')
+    conf.check(header_name='charset.h', use='samba', features='c cprogram')
 
     conf.check_cc(lib='dbi', uselib_store='dbi')
-    conf.check_cc(lib='talloc', uselib_store='talloc')
+    conf.check_cc(lib='talloc', uselib_store='samba')
     conf.check_cc(lib='ndr', uselib_store='ndr')
+    conf.check_cc(lib='gmp', uselib_store='nettle')
     conf.check_cc(lib='hogweed', uselib_store='nettle')
     conf.check_cc(lib='nettle', uselib_store='nettle')
-    conf.check_cc(lib='gmp', uselib_store='nettle')
 
     # Purposefully at the bottom because waf configuration tests fail with -Wstrict-prototypes and -Werror
     conf.env.CFLAGS = ['-O0', '-g', '-ggdb', '-std=c99', '-Wall', '-Wshadow', '-Wpointer-arith', '-Wcast-align', '-Wwrite-strings', '-Wdeclaration-after-statement', 
@@ -98,12 +101,12 @@ def build(bld):
     bld.program(
                 source = 'siahsd.c',
                 target = 'siahsd',
-                use    = [ 'database', 'config', 'status', 'sia', 'siahs', 'jsonbot', 'dbi', 'talloc','glib-2.0', 'nettle' ])
+                use    = [ 'database', 'config', 'status', 'sia', 'siahs', 'jsonbot', 'dbi', 'talloc', 'glib-2.0', 'nettle' ])
 
     bld.program(
                 source = 'secip.idl secipd.c crc16.c',
                 target = 'secipd',
-                use    = [ 'database', 'config', 'status', 'sia', 'siahs', 'jsonbot', 'dbi', 'talloc','glib-2.0', 'nettle', 'ndr' ])
+                use    = [ 'database', 'config', 'status', 'sia', 'siahs', 'jsonbot', 'dbi', 'samba', 'glib-2.0', 'nettle', 'ndr' ])
     pass
 
 def clean(ctx):

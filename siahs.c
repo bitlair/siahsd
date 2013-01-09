@@ -47,10 +47,6 @@ STATUS parse_siahs_message(TALLOC_CTX *mem_ctx, const char *pkt_prom, const char
 
 	/* The remaining ptr contains the human readable description string */
 
-	if (strcmp(pkt_prom, prom) != 0) {
-		return ST_ASSERTION_FAILED;
-	}
-
 	/* Ignore alive! messages */
 	if (strcmp(code, "alive!") == 0) {
 		DEBUG(2, "Got keepalive packet from prom %s", prom);
