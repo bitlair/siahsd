@@ -81,7 +81,7 @@ const struct {
 	  "System has been partially armed" },
 	{ "CI", "Fail to Close",
 	  "An area has not been armed at the end of the closing window" },
-	{ "CL", "Late Close",
+	{ "CJ", "Late Close",
 	  "An area was armed after the closing window" },
 	{ "CK", "Early Close",
 	  "An area was armed before the closing window" },
