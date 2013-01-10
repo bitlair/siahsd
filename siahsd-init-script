@@ -17,11 +17,12 @@
 
 DAEMON=/usr/local/src/siahsd/build/siahsd
 DAEMON_ARGS=
+USER=siahsd
 PIDFILE=/var/run/siahsd.pid
 
 start() {
         echo -n "Starting SIA-HS Daemon: "
-        if start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON -- $DAEMON_ARGS; then
+        if start-stop-daemon --start --quiet --pidfile $PIDFILE --chuid $USER --exec $DAEMON -- $DAEMON_ARGS; then
             echo "siahsd."
         else
             echo "FAILED."
@@ -31,7 +32,7 @@ start() {
 
 stop() {
         echo -n "Stopping SIA-HS Daemon: "
-        if start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE --exec $DAEMON; then
+        if start-stop-daemon --stop --quiet --chuid $USER --retry=TERM/30/KILL/5 --pidfile $PIDFILE --exec $DAEMON; then
             echo "siahsd."
         else
             echo "FAILED."
