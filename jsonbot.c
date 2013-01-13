@@ -41,8 +41,8 @@ STATUS jsonbot_notify(TALLOC_CTX *mem_ctx, const char *prom, const char *code, c
 
 	aes_set_encrypt_key(&aes, strlen(conf->jsonbot_aeskey), (uint8_t *) conf->jsonbot_aeskey);
 
-	outtext = talloc_asprintf(mem_ctx, "%s %s Event at prom %s: %s: %s: %s -- %s\n",
-			conf->jsonbot_password, conf->jsonbot_privmsg_to, prom, description, code,
+	outtext = talloc_asprintf(mem_ctx, "%s %s Alarm event: %s: %s: %s -- %s\n",
+			conf->jsonbot_password, conf->jsonbot_privmsg_to, description, code,
 			sia_code_str(code), sia_code_desc(code));
 	NO_MEM_RETURN(outtext);
 
