@@ -30,7 +30,7 @@ static STATUS send_ppk_com(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fro
 	struct secip_packet *ppk_com;
 	DATA_BLOB raw_pkt, raw_setup_pkt;
 	enum ndr_err_code ndr_err;
-	size_t n, i;
+	size_t i;
 	size_t count;
 	const configuration *conf = get_conf();
 
@@ -76,7 +76,7 @@ static STATUS send_ppk_com(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fro
 		return ST_GENERAL_FAILURE;
 	}
 
-	n = sendto(sock, raw_setup_pkt.data, raw_setup_pkt.length, 0, (struct sockaddr *)&from, sizeof(from));
+	sendto(sock, raw_setup_pkt.data, raw_setup_pkt.length, 0, (struct sockaddr *)&from, sizeof(from));
 
 	talloc_free(setup_pkt);
 	return 0;
@@ -86,7 +86,7 @@ static STATUS send_arc_enc(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fro
 	struct secip_setup_packet *setup_pkt;
 	struct secip_packet *arc_enc;
 	DATA_BLOB raw_pkt, raw_setup_pkt, crypted_setup_pkt;
-	size_t n, i;
+	size_t i;
 	enum ndr_err_code ndr_err;
 	struct aes_ctx aes;
 
@@ -138,7 +138,7 @@ static STATUS send_arc_enc(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fro
 
 	aes_encrypt(&aes, raw_setup_pkt.length-2, crypted_setup_pkt.data+2, raw_setup_pkt.data+2);
 
-	n = sendto(sock, crypted_setup_pkt.data, crypted_setup_pkt.length, 0, (struct sockaddr *)&from, sizeof(from));
+	sendto(sock, crypted_setup_pkt.data, crypted_setup_pkt.length, 0, (struct sockaddr *)&from, sizeof(from));
 
 	return ST_OK;
 }
@@ -149,7 +149,7 @@ static STATUS send_psup_resp(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in f
 	struct secip_packet *psup_resp;
 	enum ndr_err_code ndr_err;
 	struct aes_ctx aes;
-	int i, n;
+	int i;
 
 	/* FIXME DEATH TO THE GLOBALS! */
 	aes_set_encrypt_key(&aes, 16, global_aes_key);
@@ -198,7 +198,7 @@ static STATUS send_psup_resp(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in f
 
 	aes_encrypt(&aes, raw_comm_pkt.length-2, crypted_comm_pkt.data+2, raw_comm_pkt.data+2);
 
-	n = sendto(sock, crypted_comm_pkt.data, crypted_comm_pkt.length, 0, (struct sockaddr *)&from, sizeof(from));
+	sendto(sock, crypted_comm_pkt.data, crypted_comm_pkt.length, 0, (struct sockaddr *)&from, sizeof(from));
 
 	return ST_OK;
 }
@@ -209,7 +209,7 @@ static STATUS send_pathcheck_resp(TALLOC_CTX *mem_ctx, int sock, struct sockaddr
 	struct secip_packet *pathcheck_resp;
 	enum ndr_err_code ndr_err;
 	struct aes_ctx aes;
-	int i, n;
+	int i;
 
 	/* FIXME DEATH TO THE GLOBALS! */
 	aes_set_encrypt_key(&aes, 16, global_aes_key);
@@ -257,7 +257,7 @@ static STATUS send_pathcheck_resp(TALLOC_CTX *mem_ctx, int sock, struct sockaddr
 
 	aes_encrypt(&aes, raw_comm_pkt.length-2, crypted_comm_pkt.data+2, raw_comm_pkt.data+2);
 
-	n = sendto(sock, crypted_comm_pkt.data, crypted_comm_pkt.length, 0, (struct sockaddr *)&from, sizeof(from));
+	sendto(sock, crypted_comm_pkt.data, crypted_comm_pkt.length, 0, (struct sockaddr *)&from, sizeof(from));
 
 	return ST_OK;
 }
@@ -268,7 +268,7 @@ static STATUS send_alarm_ack(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in f
 	struct secip_packet *alarm_ack;
 	enum ndr_err_code ndr_err;
 	struct aes_ctx aes;
-	int i, n;
+	int i;
 	char *message;
 
 	/* FIXME DEATH TO THE GLOBALS! */
@@ -326,7 +326,7 @@ static STATUS send_alarm_ack(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in f
 
 	aes_encrypt(&aes, raw_comm_pkt.length-2, crypted_comm_pkt.data+2, raw_comm_pkt.data+2);
 
-	n = sendto(sock, crypted_comm_pkt.data, crypted_comm_pkt.length, 0, (struct sockaddr *)&from, sizeof(from));
+	sendto(sock, crypted_comm_pkt.data, crypted_comm_pkt.length, 0, (struct sockaddr *)&from, sizeof(from));
 
 	return ST_OK;
 }
@@ -337,7 +337,7 @@ static STATUS send_poll_ack(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fr
 	struct secip_packet *poll_ack;
 	enum ndr_err_code ndr_err;
 	struct aes_ctx aes;
-	int i, n;
+	int i;
 
 	/* FIXME DEATH TO THE GLOBALS! */
 	aes_set_encrypt_key(&aes, 16, global_aes_key);
@@ -385,7 +385,7 @@ static STATUS send_poll_ack(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fr
 
 	aes_encrypt(&aes, raw_comm_pkt.length-2, crypted_comm_pkt.data+2, raw_comm_pkt.data+2);
 
-	n = sendto(sock, crypted_comm_pkt.data, crypted_comm_pkt.length, 0, (struct sockaddr *)&from, sizeof(from));
+	sendto(sock, crypted_comm_pkt.data, crypted_comm_pkt.length, 0, (struct sockaddr *)&from, sizeof(from));
 
 	return ST_OK;
 }
@@ -472,7 +472,7 @@ int main (int argc, char **argv) {
 			if (pidfile < 0)
 				return ST_LOG_ERR;
 
-			n = fprintf(pidfile, "%d\n", pid);
+			fprintf(pidfile, "%d\n", pid);
 			fclose(pidfile);
 			return ST_OK;
 		}

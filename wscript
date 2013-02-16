@@ -44,6 +44,10 @@ def configure(conf):
     conf.check_cfg(package='talloc', uselib_store='talloc',
                 args=['--cflags', '--libs' ])
 
+    # Check for tevent
+    conf.check_cfg(package='tevent', uselib_store='samba',
+                args=['--cflags', '--libs' ])
+
     # Check for samba-4.0
     conf.check_cfg(package='samba-util', uselib_store='samba',
                 args=['--cflags', '--libs' ])
