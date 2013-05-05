@@ -48,6 +48,13 @@ typedef struct {
 	char *jsonbot_password;
 	char *jsonbot_privmsg_to;
 
+	/* Space state database client configuration */
+	char *spacestate_host;
+	char *spacestate_username;
+	char *spacestate_password;
+	char *spacestate_name;
+	char *spacestate_driver;
+
 	/* Global configuration based state */
 	GKeyFile *keyfile;
 	uint8_t event_handler_cnt;
