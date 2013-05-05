@@ -25,9 +25,9 @@ STATUS spacestate_update(TALLOC_CTX *mem_ctx, const char *prom, const char *code
 	bool must_open = 0;
 
 	DEBUG(6, "Got event for spacestate: %s %s %s -- %s: %s\n", prom, code, description, sia_code_str(code), sia_code_desc(code));
-	
 
-	if (strncmp(code, "CL", 2) == 0 || 
+
+	if (strncmp(code, "CL", 2) == 0 ||
 			strncmp(code, "CA", 2) == 0 ||
 			strncmp(code, "CF", 2) == 0 ||
 			strncmp(code, "CJ", 2) == 0 ||
@@ -49,7 +49,7 @@ STATUS spacestate_update(TALLOC_CTX *mem_ctx, const char *prom, const char *code
 	if (must_open) {
 		dbi_conn_queryf(conn, "UPDATE space_state set override=0, override_state='open'");
 	} else if (must_close) {
-		dbi_conn_queryf(conn, "UPDATE space_state set override=1, override_state='close'");
+		dbi_conn_queryf(conn, "UPDATE space_state set override=1, override_state='closed'");
 	}
 
 	return ST_OK;
@@ -97,7 +97,7 @@ STATUS spacestate_init(void)
 	conf->event_handlers[conf->event_handler_cnt] = spacestate_update;
 	conf->event_handler_cnt++;
 
-	DEBUG(1, "Connecting to %s space state database %s at %s as user %s", conf->spacestate_driver, 
+	DEBUG(1, "Connecting to %s space state database %s at %s as user %s", conf->spacestate_driver,
 		conf->spacestate_name, conf->spacestate_host, conf->spacestate_username);
 
 	dbi_initialize(NULL);
@@ -111,7 +111,7 @@ STATUS spacestate_init(void)
 	if (dbi_conn_connect(conn) < 0) {
 		DEBUG(0, "Could not connect to the space state database");
 		return ST_DATABASE_FAILURE;
-	} 
+	}
 
 	return ST_OK;
 }
