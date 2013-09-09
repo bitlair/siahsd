@@ -1,0 +1,72 @@
+interface chiron
+{
+	const int MD5_HASH_LEN = 0x10;
+	const int CHALLENGE_LEN = 0x9;
+	const int MSG_HDR_LEN = 0x4;
+
+	typedef [public,enum8bit] enum {
+		CHIRON_ACCOUNT = 0x41, /* 'A' */
+		CHIRON_CHALLENGE = 0x43, /* 'C' */
+		CHIRON_RESPONSE = 0x52, /* 'R' */
+		CHIRON_KEY = 0x4B, /* 'K' */
+		CHIRON_ACK = 0x55, /* 'U' */
+		CHIRON_HANDSHAKE = 0x48, /* 'H' */
+		CHIRON_TRANSPARENT = 0x54 /* 'T' */
+	} chiron_msg_type;
+
+	typedef [public,enum8bit] enum {
+		CHIRON_EL_DEVSTATE = 0x0C,
+		CHIRON_EL_DEVICEID = 0x17,
+		CHIRON_EL_UNKNOWN2 = 0x20,
+		CHIRON_EL_UNKNOWN3 = 0x21
+	} chiron_element_tag;
+
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		chiron_element_tag el_tag;
+		uint8 opt_len;
+		uint8 payload[opt_len];
+	} chiron_response_element;
+
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		uint8 mac_octets[3];
+		// FIXME: TLVs can't be represented in pidl, move to ASN.1 parsing
+		// chiron_response_element elements[*]; 
+	} chiron_msg_inner_response;
+
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		uint8 length;
+		uint8 account_code[4];
+	} chiron_msg_account;
+
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		uint8 length;
+		uint8 md5_check[MD5_HASH_LEN];
+		uint8 challenge[length - 0x10];
+	} chiron_msg_challenge;
+
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		uint8 length;
+		uint8 md5_check[MD5_HASH_LEN];
+		uint8 payload[length - MD5_HASH_LEN];
+	} chiron_msg_response;
+
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		uint8 length;
+		uint8 data[length];
+	} chiron_msg_unknown;
+
+	typedef [nodiscriminant,public,flag(LIBNDR_FLAG_NOALIGN)] union {
+		[case(CHIRON_ACCOUNT)] chiron_msg_account account;
+		[case(CHIRON_CHALLENGE)] chiron_msg_challenge challenge;
+		[case(CHIRON_RESPONSE)] chiron_msg_response response;
+		[default] chiron_msg_unknown unknown;
+	} chiron_msg_union;
+
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		chiron_msg_type msg_type;
+		uint8 seq;
+		uint8 flags;
+		[switch_is(msg_type)] chiron_msg_union msg; 
+	} chiron_message;
+
+}
