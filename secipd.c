@@ -36,8 +36,11 @@ static STATUS send_ppk_com(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fro
 
 
 	setup_pkt = talloc(mem_ctx, struct secip_setup_packet);
+	NO_MEM_RETURN(setup_pkt);
 
 	ppk_com = talloc(setup_pkt, struct secip_packet);
+	NO_MEM_RETURN(ppk_com);
+
 	ppk_com->pad = 0;
 	ppk_com->connection_id = 0x1337; /* FIXME */
 	ppk_com->message_id = SECIP_MSG_PPK_COM;
@@ -96,8 +99,11 @@ static STATUS send_arc_enc(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fro
 	memcpy(global_aes_key, pkt->msg.ppk_rep.key_block.aes_key, 16);
 
 	setup_pkt = talloc(mem_ctx, struct secip_setup_packet);
+	NO_MEM_RETURN(setup_pkt);
 
 	arc_enc = talloc_zero(setup_pkt, struct secip_packet);
+	NO_MEM_RETURN(arc_enc);
+	
 	arc_enc->pad = 0;
 	arc_enc->connection_id = 0x1337; /* FIXME */
 	memcpy(arc_enc->device_id, "Bitlair SecIPd!", 16);
@@ -133,6 +139,7 @@ static STATUS send_arc_enc(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fro
 	}
 
 	crypted_setup_pkt.data = talloc_zero_array(mem_ctx, uint8_t, 258);
+	NO_MEM_RETURN(crypted_setup_pkt.data);
 	crypted_setup_pkt.length = 258;
 	memcpy(crypted_setup_pkt.data, raw_setup_pkt.data, 2);
 
@@ -155,8 +162,11 @@ static STATUS send_psup_resp(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in f
 	aes_set_encrypt_key(&aes, 16, global_aes_key);
 
 	comm_pkt = talloc(mem_ctx, struct secip_comm_packet);
+	NO_MEM_RETURN(comm_pkt);
 
 	psup_resp = talloc_zero(comm_pkt, struct secip_packet);
+	NO_MEM_RETURN(psup_resp);
+
 	psup_resp->pad = 0;
 	psup_resp->connection_id = 0x1337; /* FIXME */
 	memcpy(psup_resp->device_id, "Bitlair SecIPd!", 16);
@@ -193,6 +203,8 @@ static STATUS send_psup_resp(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in f
 	}
 
 	crypted_comm_pkt.data = talloc_zero_array(mem_ctx, uint8_t, 258);
+	NO_MEM_RETURN(crypted_comm_pkt.data);
+
 	crypted_comm_pkt.length = 130;
 	memcpy(crypted_comm_pkt.data, raw_comm_pkt.data, 2);
 
@@ -216,8 +228,11 @@ static STATUS send_pathcheck_resp(TALLOC_CTX *mem_ctx, int sock, struct sockaddr
 
 
 	comm_pkt = talloc(mem_ctx, struct secip_comm_packet);
+	NO_MEM_RETURN(comm_pkt);
 
 	pathcheck_resp = talloc_zero(comm_pkt, struct secip_packet);
+	NO_MEM_RETURN(pathcheck_resp);
+
 	pathcheck_resp->pad = 0;
 	pathcheck_resp->connection_id = 0x1337; /* FIXME */
 	memcpy(pathcheck_resp->device_id, "Bitlair SecIPd!", 16);
@@ -252,6 +267,7 @@ static STATUS send_pathcheck_resp(TALLOC_CTX *mem_ctx, int sock, struct sockaddr
 	}
 
 	crypted_comm_pkt.data = talloc_zero_array(mem_ctx, uint8_t, 258);
+	NO_MEM_RETURN(crypted_comm_pkt.data);
 	crypted_comm_pkt.length = 130;
 	memcpy(crypted_comm_pkt.data, raw_comm_pkt.data, 2);
 
@@ -275,6 +291,8 @@ static STATUS send_alarm_ack(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in f
 	aes_set_encrypt_key(&aes, 16, global_aes_key);
 
 	message = talloc_strndup(pkt, (char *)pkt->msg.alarm.message, pkt->msg.alarm.length);
+	NO_MEM_RETURN(message);
+
 	DEBUG(0, "Got message: %s", message);
 
 	/* FIXME Hardcoded prom */
@@ -285,8 +303,11 @@ static STATUS send_alarm_ack(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in f
 	}
 
 	comm_pkt = talloc(mem_ctx, struct secip_comm_packet);
+	NO_MEM_RETURN(comm_pkt);
 
 	alarm_ack = talloc_zero(comm_pkt, struct secip_packet);
+	NO_MEM_RETURN(alarm_ack);
+
 	alarm_ack->pad = 0;
 	alarm_ack->connection_id = 0x1337; /* FIXME */
 	memcpy(alarm_ack->device_id, "Bitlair SecIPd!", 16);
@@ -321,6 +342,7 @@ static STATUS send_alarm_ack(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in f
 	}
 
 	crypted_comm_pkt.data = talloc_zero_array(mem_ctx, uint8_t, 258);
+	NO_MEM_RETURN(crypted_comm_pkt.data);
 	crypted_comm_pkt.length = 130;
 	memcpy(crypted_comm_pkt.data, raw_comm_pkt.data, 2);
 
@@ -344,8 +366,10 @@ static STATUS send_poll_ack(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fr
 
 
 	comm_pkt = talloc(mem_ctx, struct secip_comm_packet);
+	NO_MEM_RETURN(comm_pkt);
 
 	poll_ack = talloc_zero(comm_pkt, struct secip_packet);
+	NO_MEM_RETURN(poll_ack);
 	poll_ack->pad = 0;
 	poll_ack->connection_id = 0x1337; /* FIXME */
 	memcpy(poll_ack->device_id, "Bitlair SecIPd!", 16);
@@ -380,6 +404,7 @@ static STATUS send_poll_ack(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in fr
 	}
 
 	crypted_comm_pkt.data = talloc_zero_array(mem_ctx, uint8_t, 258);
+	NO_MEM_RETURN(crypted_comm_pkt.data);
 	crypted_comm_pkt.length = 130;
 	memcpy(crypted_comm_pkt.data, raw_comm_pkt.data, 2);
 
@@ -452,6 +477,7 @@ int main (int argc, char **argv) {
 
 	/* Initialize a memory context */
 	mem_ctx = talloc_init("secipd");
+	NO_MEM_RETURN(mem_ctx);
 
 
 	/* Read the configuration file */
@@ -517,6 +543,7 @@ int main (int argc, char **argv) {
 		DATA_BLOB data;
 
 		pkt = talloc(mem_ctx, struct secip_packet);
+		NO_MEM_RETURN(pkt);
 
 		n = recvfrom(sock, &buf, sizeof(buf), 0, (struct sockaddr *) &from, &fromlen);
 		if (n < 0) {
@@ -532,6 +559,7 @@ int main (int argc, char **argv) {
 		/* Copy packet to data blob */
 		data.length = n;
 		data.data = talloc_memdup(pkt, buf, n);
+		NO_MEM_RETURN(data.data);
 		
 		if (*(uint16_t *)data.data < 0xFF00 && data.length > 256) {
 			data = decrypt_setup_packet(pkt, data);
@@ -552,6 +580,7 @@ int main (int argc, char **argv) {
 		/* Parse the header */
 		if (data.length > 256) {
 			setup_pkt = talloc(pkt, struct secip_setup_packet);
+			NO_MEM_RETURN(setup_pkt);
 			ndr_err = ndr_pull_struct_blob_all(&data, pkt, setup_pkt, (ndr_pull_flags_fn_t)ndr_pull_secip_setup_packet);
 
 			if (ndr_err != NDR_ERR_SUCCESS) {
@@ -560,6 +589,7 @@ int main (int argc, char **argv) {
 			DEBUG(10, "%s", ndr_print_struct_string(setup_pkt,(ndr_print_fn_t)ndr_print_secip_setup_packet, "setup packet", setup_pkt));
 		} else if (data.length > 128) {
 			comm_pkt = talloc(pkt, struct secip_comm_packet);
+			NO_MEM_RETURN(comm_pkt);
 			ndr_err = ndr_pull_struct_blob_all(&data, pkt, comm_pkt, (ndr_pull_flags_fn_t)ndr_pull_secip_comm_packet);
 
 			if (ndr_err != NDR_ERR_SUCCESS) {
