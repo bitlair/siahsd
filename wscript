@@ -100,7 +100,8 @@ def configure(conf):
 def build(bld):
     bld.stlib(source="database.c", target="database", use='glib-2.0')
     bld.stlib(source="status.c", target="status", use='glib-2.0')
-    bld.stlib(source="config.c", target="config", use='glib-2.0 database jsonbot')
+    bld.stlib(source="spacestate.c", target="spacestate", use='glib-2.0')
+    bld.stlib(source="config.c", target="config", use='glib-2.0 database jsonbot spacestate')
     bld.stlib(source="sia.c", target="sia", use='glib-2.0')
     bld.stlib(source="siahs.c", target="siahs", use='glib-2.0')
     bld.stlib(source="jsonbot.c", target="jsonbot", use='glib-2.0')
@@ -108,12 +109,12 @@ def build(bld):
     bld.program(
                 source = 'siahsd.c',
                 target = 'siahsd',
-                use    = [ 'database', 'config', 'status', 'sia', 'siahs', 'jsonbot', 'dbi', 'talloc', 'glib-2.0', 'nettle' ])
+                use    = [ 'database', 'config', 'status', 'sia', 'siahs', 'jsonbot', 'spacestate', 'dbi', 'talloc', 'glib-2.0', 'nettle' ])
 
     bld.program(
                 source = 'secip.idl secipd.c crc16.c',
                 target = 'secipd',
-                use    = [ 'database', 'config', 'status', 'sia', 'siahs', 'jsonbot', 'dbi', 'samba', 'glib-2.0', 'nettle', 'ndr' ])
+                use    = [ 'database', 'config', 'status', 'sia', 'siahs', 'jsonbot', 'spacestate', 'dbi', 'samba', 'glib-2.0', 'nettle', 'ndr' ])
     bld.program(
                 source = 'chiron.idl chirond.c',
                 target = 'chirond',
