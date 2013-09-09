@@ -91,9 +91,12 @@ def configure(conf):
     conf.check_cc(lib='nettle', uselib_store='nettle')
 
     # Purposefully at the bottom because waf configuration tests fail with -Wstrict-prototypes and -Werror
-    conf.env.CFLAGS = ['-O0', '-g', '-ggdb', '-std=c99', '-Wall', '-Wshadow', '-Wpointer-arith', '-Wcast-align', '-Wwrite-strings', '-Wdeclaration-after-statement', 
-                      '-Werror-implicit-function-declaration', '-Wstrict-prototypes', '-Werror']
+    conf.env.CFLAGS = ['-O0', '-g', '-ggdb', '-std=c99', '-Wall', '-Wextra', '-Winit-self', '-Wformat-security','-Wshadow', '-pedantic',
+                       '-Wpointer-arith', '-Wcast-align', '-Wwrite-strings', '-Wdeclaration-after-statement', 
+                       '-Werror-implicit-function-declaration', '-Wstrict-prototypes', '-Werror', '-fPIC', '-pie', '-fstack-protector',
+                       '-D_FORTIFY_SOURCE=2']
 
+    conf.env.LDFLAGS = ['-fPIC', '-pie', '-z', 'relro', '-z', 'now', '-fstack-protector']
 def build(bld):
     bld.stlib(source="database.c", target="database", use='glib-2.0')
     bld.stlib(source="status.c", target="status", use='glib-2.0')
@@ -111,6 +114,10 @@ def build(bld):
                 source = 'secip.idl secipd.c crc16.c',
                 target = 'secipd',
                 use    = [ 'database', 'config', 'status', 'sia', 'siahs', 'jsonbot', 'dbi', 'samba', 'glib-2.0', 'nettle', 'ndr' ])
+    bld.program(
+                source = 'chiron.idl chirond.c',
+                target = 'chirond',
+                use    = [ 'database', 'config', 'status', 'sia', 'jsonbot', 'dbi', 'samba', 'glib-2.0', 'nettle', 'ndr' ])
     pass
 
 def clean(ctx):
