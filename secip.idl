@@ -140,7 +140,10 @@ interface secip
 
 	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
 		uint16 connection_id; /* 0xffff is unassigned */
-		uint8 pad; /* This is pretty weird actually, alphatronics bug?? */
+		uint8 pad; /* This is a fix for a broken spec. This is necessary because
+		              there is no secure cryptographic padding and you can't 
+		              encrypt a 128-byte block with a 1024-bit public key. 
+		            */
 		secip_message message_id;
 		uint16 sequence_number;
 		char device_id[16];
