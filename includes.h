@@ -27,6 +27,7 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <netdb.h>
 #include <fcntl.h>
 #include <errno.h>
 
