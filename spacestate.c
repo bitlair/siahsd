@@ -24,7 +24,7 @@ static dbi_conn conn;
 STATUS spacestate_update(TALLOC_CTX *mem_ctx, const char *prom, const char *code, const char *description) {
 	bool must_close = 0;
 	bool must_open = 0;
-	STATUS result;
+	STATUS result = ST_OK;
 
 	DEBUG(6, "Got event for spacestate: %s %s %s -- %s: %s\n", prom, code, description, sia_code_str(code), sia_code_desc(code));
 

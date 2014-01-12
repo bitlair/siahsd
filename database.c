@@ -26,7 +26,7 @@ static dbi_conn conn;
  */
 static char *talloc_quoted_string(TALLOC_CTX *mem_ctx, const char *string) {
 	/* Allocate twice the string length, to be safe and not having to realloc all the time */
-	char *ret = talloc_zero_array(mem_ctx, char, strlen(string) * 2 + 1);
+	char *ret = talloc_zero_array(mem_ctx, char, strlen(string) * 2 + 3);
 	size_t i, j;
 
 	NO_MEM_RETURN_RV(ret, NULL);
@@ -51,6 +51,8 @@ STATUS proper_dbi_queryf(dbi_conn dbconn, const char *query_fmt, ...) {
 	va_list ap;
 	int conn_res;
 	dbi_result dbi_res;
+	TALLOC_CTX *local_ctx;
+	char *query;
 
 	conn_res = dbi_conn_connect(dbconn);
 	if (conn_res != DBI_ERROR_NONE) {
@@ -65,10 +67,14 @@ STATUS proper_dbi_queryf(dbi_conn dbconn, const char *query_fmt, ...) {
 		return ST_DATABASE_FAILURE;
 	}
 
-        va_start(ap, query_fmt);
-	dbi_res = dbi_conn_queryf(dbconn, query_fmt, ap);
-        va_end(ap);
+	local_ctx = talloc_init(NULL);
 
+	va_start(ap, query_fmt);
+	query = talloc_vasprintf(local_ctx, query_fmt, ap);
+	DEBUG(0, "Executing query %s.", query);
+	va_end(ap);
+
+	dbi_res = dbi_conn_query(dbconn, query);
 	if (dbi_res == NULL) {
 		const char *errmsg;
 		int err_res = dbi_conn_error(dbconn, &errmsg);
@@ -78,9 +84,11 @@ STATUS proper_dbi_queryf(dbi_conn dbconn, const char *query_fmt, ...) {
 		} else {
 			DEBUG(0, "Database error %d when querying: %s", err_res, errmsg);
 		}
+		talloc_free(local_ctx);
 		return ST_DATABASE_FAILURE;
 	}
 
+	talloc_free(local_ctx);
 	return ST_OK;
 }
 STATUS log_event_to_database(TALLOC_CTX *mem_ctx, const char *prom, const char *code, const char *description) {
@@ -99,6 +107,8 @@ STATUS log_event_to_database(TALLOC_CTX *mem_ctx, const char *prom, const char *
 	NO_MEM_RETURN(quoted_description);
 
 	DEBUG(3, "Storing event: %s %s %s -- %s: %s\n", prom, code, description, sia_code_str(code), sia_code_desc(code));
+	
+	DEBUG(0, "%s,%s,%s,%s", quoted_prom, quoted_code, quoted_long_code, quoted_description);
 
 	proper_dbi_queryf(conn, "INSERT INTO events (timestamp, prom, code, long_code, description) VALUES (NOW(), %s, %s, %s, %s)\n",
 		 quoted_prom, quoted_code, quoted_long_code, quoted_description);

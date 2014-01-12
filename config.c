@@ -111,7 +111,7 @@ STATUS read_configuration_file(TALLOC_CTX *mem_ctx)
 	GError *error = NULL;
 	char *buf, *ptr;
 
-	conf = talloc(mem_ctx, configuration);
+	conf = talloc_zero(mem_ctx, configuration);
 	NO_MEM_RETURN(conf);
 
  	conf->keyfile = g_key_file_new ();
