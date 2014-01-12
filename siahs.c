@@ -55,7 +55,7 @@ STATUS parse_siahs_message(TALLOC_CTX *mem_ctx, const char *pkt_prom, const char
 	}
 
 	/* Dispatch all configured event handlers */
-	for (i = 0; conf->event_handlers[i] != NULL; i++) {
+	for (i = 0; i < conf->event_handler_cnt; i++) {
 		conf->event_handlers[i](message, prom, code, ptr);
 	}
 

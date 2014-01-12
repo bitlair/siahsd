@@ -126,8 +126,10 @@ int main(int argc, char **argv) {
 		if ((pid = fork())) {
 			/* Write PID file */
 			pidfile = fopen(conf->pid_file, "w");
-			if (pidfile < 0)
+			if (pidfile == NULL) {
+				DEBUG(0, "Cannot open pid file");
 				return ST_LOG_ERR;
+			}
 
 			n = fprintf(pidfile, "%d\n", pid);
 			fclose(pidfile);

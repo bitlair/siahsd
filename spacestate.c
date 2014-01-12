@@ -16,6 +16,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "includes.h"
+#include "database.h"
 
 
 static dbi_conn conn;
@@ -23,6 +24,7 @@ static dbi_conn conn;
 STATUS spacestate_update(TALLOC_CTX *mem_ctx, const char *prom, const char *code, const char *description) {
 	bool must_close = 0;
 	bool must_open = 0;
+	STATUS result;
 
 	DEBUG(6, "Got event for spacestate: %s %s %s -- %s: %s\n", prom, code, description, sia_code_str(code), sia_code_desc(code));
 
@@ -35,7 +37,7 @@ STATUS spacestate_update(TALLOC_CTX *mem_ctx, const char *prom, const char *code
 			strncmp(code, "CQ", 2) == 0 ||
 			strncmp(code, "CS", 2) == 0) {
 		must_close = 1;
-    }
+	}
 
 	if (strncmp(code, "OP", 2) == 0 ||
 			strncmp(code, "OA", 2) == 0 ||
@@ -47,9 +49,15 @@ STATUS spacestate_update(TALLOC_CTX *mem_ctx, const char *prom, const char *code
 	}
 
 	if (must_open) {
-		dbi_conn_queryf(conn, "UPDATE space_state set override=0, override_state='open'");
+		DEBUG(3, "Alarm disarmed. Updating space state override.");
+		result = proper_dbi_queryf(conn, "UPDATE space_state set override=0, override_state='open';");
 	} else if (must_close) {
-		dbi_conn_queryf(conn, "UPDATE space_state set override=1, override_state='closed'");
+		DEBUG(3, "Alarm armed. Updating space state override.");
+		result = proper_dbi_queryf(conn, "UPDATE space_state set override=1, override_state='closed';");
+	}
+
+	if (result != ST_OK) {
+		return result;
 	}
 
 	return ST_OK;

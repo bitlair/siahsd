@@ -17,4 +17,5 @@
 */
 
 STATUS log_event_to_database(TALLOC_CTX *mem_ctx, const char *prom, const char *code, const char *description);
+STATUS proper_dbi_queryf(dbi_conn conn, const char *query_fmt, ...);
 STATUS database_init(void);
