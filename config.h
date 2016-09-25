@@ -54,6 +54,8 @@ typedef struct {
 	char *spacestate_password;
 	char *spacestate_name;
 	char *spacestate_driver;
+	char *spacestate_hook_open;
+	char *spacestate_hook_close;
 
 	/* Global configuration based state */
 	GKeyFile *keyfile;
