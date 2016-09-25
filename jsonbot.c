@@ -33,10 +33,10 @@ STATUS jsonbot_notify(TALLOC_CTX *mem_ctx, const char *prom, const char *code, c
 
 	conf = get_conf();
 
-    /* Ignore test reports */
-    if (strncmp(code, "RP", 2) == 0) {
-        return ST_OK;
-    }
+	/* Ignore test reports */
+	if (strncmp(code, "RP", 2) == 0) {
+		return ST_OK;
+	}
 
 
 	aes_set_encrypt_key(&aes, strlen(conf->jsonbot_aeskey), (uint8_t *) conf->jsonbot_aeskey);
