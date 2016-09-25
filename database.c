@@ -71,7 +71,7 @@ STATUS proper_dbi_queryf(dbi_conn dbconn, const char *query_fmt, ...) {
 
 	va_start(ap, query_fmt);
 	query = talloc_vasprintf(local_ctx, query_fmt, ap);
-	DEBUG(0, "Executing query %s.", query);
+	DEBUG(5, "Executing query %s.", query);
 	va_end(ap);
 
 	dbi_res = dbi_conn_query(dbconn, query);
@@ -88,9 +88,12 @@ STATUS proper_dbi_queryf(dbi_conn dbconn, const char *query_fmt, ...) {
 		return ST_DATABASE_FAILURE;
 	}
 
+	//dbi_conn_close(dbconn);
+
 	talloc_free(local_ctx);
 	return ST_OK;
 }
+
 STATUS log_event_to_database(TALLOC_CTX *mem_ctx, const char *prom, const char *code, const char *description) {
 	char *quoted_prom;
 	char *quoted_code;
@@ -108,8 +111,6 @@ STATUS log_event_to_database(TALLOC_CTX *mem_ctx, const char *prom, const char *
 
 	DEBUG(3, "Storing event: %s %s %s -- %s: %s\n", prom, code, description, sia_code_str(code), sia_code_desc(code));
 	
-	DEBUG(0, "%s,%s,%s,%s", quoted_prom, quoted_code, quoted_long_code, quoted_description);
-
 	proper_dbi_queryf(conn, "INSERT INTO events (timestamp, prom, code, long_code, description) VALUES (NOW(), %s, %s, %s, %s)\n",
 		 quoted_prom, quoted_code, quoted_long_code, quoted_description);
 
@@ -127,7 +128,6 @@ STATUS database_init(void)
 {
 	configuration *conf = get_modifiable_conf();
 	GError *error = NULL;
-	int conn_res;
 
 	conf->database_host = g_key_file_get_string(conf->keyfile, "database",
 												"host", &error);
@@ -164,7 +164,7 @@ STATUS database_init(void)
 	conf->event_handlers[conf->event_handler_cnt] = log_event_to_database;
 	conf->event_handler_cnt++;
 
-	DEBUG(1, "Connecting to %s database %s at %s as user %s", conf->database_driver, 
+	DEBUG(1, "Setting properties to %s database %s at %s as user %s", conf->database_driver, 
 		conf->database_name, conf->database_host, conf->database_username);
 
 	dbi_initialize(NULL);
@@ -174,19 +174,6 @@ STATUS database_init(void)
 	dbi_conn_set_option(conn, "password", conf->database_password);
 	dbi_conn_set_option(conn, "dbname", conf->database_name);
 	dbi_conn_set_option(conn, "encoding", "UTF-8");
-
-	conn_res = dbi_conn_connect(conn);
-	if (conn_res != DBI_ERROR_NONE) {
-		const char *errmsg;
-		int err_res = dbi_conn_error(conn, &errmsg);
-
-		if (err_res == DBI_ERROR_NONE) {
-			DEBUG(0, "Strange situation: There was an error, but error buffer is empty");
-		} else {
-			DEBUG(0, "Database error %d/%d while connecting: %s", conn_res, err_res, errmsg);
-		}
-		return ST_DATABASE_FAILURE;
-	}
 
 	return ST_OK;
 }
