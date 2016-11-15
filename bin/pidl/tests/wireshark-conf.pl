@@ -15,7 +15,7 @@ use Parse::Pidl::Wireshark::Conformance qw(ReadConformanceFH valid_ft_type valid
 sub parse_conf($)
 {
 	my $str = shift;
-    open(TMP, "+>", undef) or die("unable to open temp file");
+	open(TMP, "+>", undef) or die("unable to open temp file");
 	print TMP $str;
 	seek(TMP, 0, 0);
 	my $data = {};
@@ -60,7 +60,7 @@ is_deeply(parse_conf("FIELD_DESCRIPTION foo my description\n"),
 
 is_deeply(parse_conf("CODE START\ndata\nCODE END\n"), { override => "data\n" });
 is_deeply(parse_conf("CODE START\ndata\nmore data\nCODE END\n"), { override => "data\nmore data\n" });
-test_warnings("nofile:1: Unknown command `CODE'\n",
+test_warnings("nofile:1: CODE END outside CODE section\n",
 	sub { parse_conf("CODE END\n"); } );
 
 is_deeply(parse_conf("TYPE winreg_String dissect_myminregstring(); FT_STRING BASE_DEC 0 0 2\n"), { types => { winreg_String => { 
