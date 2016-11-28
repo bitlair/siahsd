@@ -111,7 +111,9 @@ STATUS tlv_to_linked_list(TALLOC_CTX *mem_ctx, DATA_BLOB data, struct ll_tlv **f
 
 		element->length = *tlvptr++;
 		if (tlvptr + element->length > data.data + data.length) {
-			prev_elem->next = NULL;
+			if (prev_elem != NULL) {
+				prev_elem->next = NULL;
+			}
 			talloc_free(element);
 			return ST_PARSE_ERROR;
 		}
@@ -194,7 +196,7 @@ STATUS handle_chiron_msg_response(struct chiron_context *ctx, struct chiron_mess
 		element = element->next;
 	}
 	send_chiron_msg_handshake(ctx, msg);
-	
+
 	return ST_OK;
 }
 
@@ -216,10 +218,10 @@ STATUS send_chiron_msg_challenge(struct chiron_context *ctx, struct chiron_messa
 	/* Make an md5 hash of the account code with the seq byte appended. */
 	md5input = talloc_array(in, uint8_t, in->msg.account.length + 1);
 	NO_MEM_RETURN(md5input);
-	
+
 	memcpy(md5input, in->msg.account.account_code, in->msg.account.length);
 	md5input[in->msg.account.length] = in->seq;
-	
+
 	out->msg.challenge.md5_check = talloc_array(out, uint8_t, MD5_HASH_LEN);
 	NO_MEM_RETURN(out->msg.challenge.md5_check);
 
@@ -282,8 +284,8 @@ STATUS send_chiron_msg_challenge(struct chiron_context *ctx, struct chiron_messa
 
 	memcpy(md5input, &raw_out.data[MSG_HDR_LEN + MD5_HASH_LEN], CHALLENGE_LEN);
 	md5input[CHALLENGE_LEN] = in->seq;
-	
-	
+
+
 	md5_init(&md5);
 	md5_update(&md5, CHALLENGE_LEN + 1, md5input);
 	md5_digest(&md5, MD5_HASH_LEN, ctx->md5_last_out);
@@ -311,7 +313,7 @@ STATUS handle_chiron_msg_account(struct chiron_context *ctx, struct chiron_messa
 
 	ctx->account_code = talloc_memdup(msg, msg->msg.account.account_code, msg->msg.account.length);
 	NO_MEM_RETURN(ctx->account_code);
-	
+
 	send_chiron_msg_challenge(ctx, msg);
 	return ST_OK;
 }
@@ -341,9 +343,11 @@ STATUS handle_message(struct chiron_context *ctx, DATA_BLOB data) {
 			break;
 		case CHIRON_ACK:
 			status = handle_chiron_msg_ack(ctx, msg);
+			break;
 		default:
 			DEBUG(0, "Got unexpected message type: %s.",
 				  ndr_print_chiron_msg_type_enum(msg, msg->msg_type));
+			status = ST_NOT_IMPLEMENTED;
 			break;
 	}
 
@@ -429,6 +433,7 @@ static STATUS listen_server(TALLOC_CTX *mem_ctx, const char *bindaddr, const cha
 
 	if (sock < 0) {
 		DEBUG(0, "Could not create socket in server");
+		freeaddrinfo(first_server);
 		return ST_SOCKET_FAILURE;
 	}
 	listen(sock, 128);
@@ -460,7 +465,12 @@ static STATUS listen_server(TALLOC_CTX *mem_ctx, const char *bindaddr, const cha
 		//} else {
 		{
 			struct chiron_context *client_ctx = talloc_zero(mem_ctx, struct chiron_context);
-			NO_MEM_RETURN(client_ctx);
+			if (client_ctx == NULL) {
+				close(sock);
+				close(clientfd);
+				DEBUG(0, "Out of memory");
+				return ST_OUT_OF_MEMORY;
+			}
 			client_ctx->clientaddr = (struct sockaddr *)&clientaddr;
 			client_ctx->clientfd = clientfd;
 
@@ -533,15 +543,15 @@ int main (int argc, char **argv) {
 	const uint8_t in_message1[] = {
 		0x41, 0x03, 0x88, 0x04, 0x33, 0x35, 0x30, 0x30 };
 	const uint8_t out_message1[] = {
-		0x43, 0x03, 0x88, 0x19, 0xaa, 0xd9, 0xaa, 0x5f, 
-		0x30, 0x5d, 0x95, 0x0d, 0x96, 0x8d, 0x4e, 0x26, 
-		0x02, 0x1a, 0x1a, 0xd8, 0x96, 0xf4, 0xc4, 0x86, 
+		0x43, 0x03, 0x88, 0x19, 0xaa, 0xd9, 0xaa, 0x5f,
+		0x30, 0x5d, 0x95, 0x0d, 0x96, 0x8d, 0x4e, 0x26,
+		0x02, 0x1a, 0x1a, 0xd8, 0x96, 0xf4, 0xc4, 0x86,
 		0xd9, 0x83, 0x4d, 0x87, 0x48 };
 	const uint8_t in_message2[] = {
-		0x52, 0x03, 0x88, 0x1f, 0xe5, 0x65, 0x48, 0x30, 
-		0x56, 0x8e, 0x3b, 0x42, 0x02, 0x6c, 0xcc, 0x9b, 
-		0xdc, 0x82, 0xb0, 0x17, 0xba, 0xef, 0x52, 0x61, 
-		0xe8, 0xce, 0x7b, 0xcb, 0x57, 0x85, 0x2b, 0x18, 
+		0x52, 0x03, 0x88, 0x1f, 0xe5, 0x65, 0x48, 0x30,
+		0x56, 0x8e, 0x3b, 0x42, 0x02, 0x6c, 0xcc, 0x9b,
+		0xdc, 0x82, 0xb0, 0x17, 0xba, 0xef, 0x52, 0x61,
+		0xe8, 0xce, 0x7b, 0xcb, 0x57, 0x85, 0x2b, 0x18,
 		0xbf, 0xfa, 0xf1 };
 	const uint8_t out_message2[] = {
 		0x4b, 0x03, 0xc0, 0x00 };
@@ -561,14 +571,13 @@ int main (int argc, char **argv) {
 	uint8_t buf[sizeof(out_message2)] = {0};
 	arcfour_crypt(&rc4, sizeof(out_message2) - 4, buf, out_message2 + 4);
 	hexdump("Decrypted outgoing payload", buf, sizeof(out_message2) - 4);
-	
-	
-	return 0;
+
 
 	/*
 	 * Open up a TCP socket the Chiron port
 	 */
-	listen_server(mem_ctx, "::", CHIRON_PORT, "tcp", handle_connection);
+	//listen_server(mem_ctx, "::", CHIRON_PORT, "tcp", handle_connection);
 
+	talloc_free(mem_ctx);
 	return 0;
 }
