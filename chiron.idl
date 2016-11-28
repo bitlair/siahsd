@@ -8,34 +8,31 @@ interface chiron
 		CHIRON_ACCOUNT = 0x41, /* 'A' */
 		CHIRON_CHALLENGE = 0x43, /* 'C' */
 		CHIRON_RESPONSE = 0x52, /* 'R' */
-		CHIRON_KEY = 0x4B, /* 'K' */
+		CHIRON_HANDSHAKE = 0x4B, /* 'K' */
 		CHIRON_ACK = 0x55, /* 'U' */
-		CHIRON_HANDSHAKE = 0x48, /* 'H' */
+		CHIRON_UNKNOWN = 0x48, /* 'H' */
 		CHIRON_TRANSPARENT = 0x54 /* 'T' */
 	} chiron_msg_type;
 
 	typedef [public,enum8bit] enum {
 		CHIRON_EL_DEVSTATE = 0x0C,
-		CHIRON_EL_DEVICEID = 0x17,
-		CHIRON_EL_UNKNOWN2 = 0x20,
-		CHIRON_EL_UNKNOWN3 = 0x21
+		CHIRON_EL_UNKNOWN_BOOL1 = 0x16,
+		CHIRON_EL_DEVICEID1 = 0x17,
+		CHIRON_EL_DEVICEID2 = 0x18,
+		CHIRON_EL_MODE_ENABLED = 0x20, /* == 0x13 */
+		CHIRON_EL_GSM_SETTING_G6 = 0x21,
+		CHIRON_EL_UNKNOWN_BOOL2 = 0x22,
+		CHIRON_EL_THREEBYTE_STATUS = 0x26,
+		CHIRON_EL_GSM_SETTING_G3_G19 = 0x27,
+		CHIRON_EL_UNKNOWN_BYTE1 = 0x2C,
+		CHIRON_EL_TROUBLE_MESSAGE1 = 0x2D,
+		CHIRON_EL_TROUBLE_MESSAGE2 = 0x36,
+		CHIRON_EL_GSM_SETTING_G4 = 0x40
 	} chiron_element_tag;
 
 	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
-		chiron_element_tag el_tag;
-		uint8 opt_len;
-		uint8 payload[opt_len];
-	} chiron_response_element;
-
-	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
-		uint8 mac_octets[3];
-		// FIXME: TLVs can't be represented in pidl, move to ASN.1 parsing
-		// chiron_response_element elements[*]; 
-	} chiron_msg_inner_response;
-
-	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
 		uint8 length;
-		uint8 account_code[4];
+		uint8 account_code[length];
 	} chiron_msg_account;
 
 	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
@@ -53,20 +50,44 @@ interface chiron
 	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
 		uint8 length;
 		uint8 data[length];
+	} chiron_msg_handshake;
+
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		uint8 length;        // Always 0
+		uint8 data[length];
+	} chiron_msg_ack;
+
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		uint8 length;
+		uint8 data[length];
 	} chiron_msg_unknown;
 
 	typedef [nodiscriminant,public,flag(LIBNDR_FLAG_NOALIGN)] union {
 		[case(CHIRON_ACCOUNT)] chiron_msg_account account;
 		[case(CHIRON_CHALLENGE)] chiron_msg_challenge challenge;
 		[case(CHIRON_RESPONSE)] chiron_msg_response response;
+		[case(CHIRON_HANDSHAKE)] chiron_msg_handshake handshake;
+		[case(CHIRON_ACK)] chiron_msg_ack ack;
 		[default] chiron_msg_unknown unknown;
 	} chiron_msg_union;
+
+	// Alternative format
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		uint8 something01;  // seen only 01
+		uint8 otherthing01; // seen only 01
+		uint8 seq;
+		uint8 someflag;     // seen 00 and 01, 01 after the response handshake, and message 0x48 'H' is issued.
+		uint8 something00;  //seen only 00
+		uint8 length;
+		chiron_msg_type msg_type;
+		[switch_is(msg_type)] chiron_msg_union msg;
+	} chiron_alt_message;
 
 	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
 		chiron_msg_type msg_type;
 		uint8 seq;
 		uint8 flags;
-		[switch_is(msg_type)] chiron_msg_union msg; 
+		[switch_is(msg_type)] chiron_msg_union msg;
 	} chiron_message;
 
 }
