@@ -495,7 +495,7 @@ int main (int argc, char **argv) {
 		if ((pid = fork())) {
 			/* Write PID file */
 			pidfile = fopen(conf->pid_file, "w");
-			if (pidfile < 0)
+			if (pidfile == NULL)
 				return ST_LOG_ERR;
 
 			fprintf(pidfile, "%d\n", pid);

@@ -37,7 +37,7 @@
  */
 static STATUS send_reply(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in from, struct siahs_packet *pkt, const char *string) {
 	uint8_t *reply;
-	int i;
+	uint32_t i;
 	uint16_t sum = 0;
 	uint32_t reply_len;
 
@@ -95,7 +95,7 @@ static STATUS send_reply(TALLOC_CTX *mem_ctx, int sock, struct sockaddr_in from,
 
 
 int main(int argc, char **argv) {
-	int sock, n, i;
+	int sock, n;
 	socklen_t fromlen;
 	struct sockaddr_in server;
 	struct sockaddr_in from;
@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
 
 		pkt->len = ntohl(*(uint32_t *)&buf[0]);
 
-		if (pkt->len > n-4) {
+		if (pkt->len > (uint32_t) (n - 4)) {
 			DEBUG(0, "Message length is longer than the packet (malformed packet!)");
 			talloc_free(pkt);
 			continue;
@@ -207,7 +207,7 @@ int main(int argc, char **argv) {
 
 
 		/* Decode with XOR 0xB6 */
-		for (i = 0;i < pkt->len - 6; i++) {
+		for (uint32_t i = 0; i < pkt->len - 6; i++) {
 			decoded[i] ^= 0xB6;
 		}
 		
