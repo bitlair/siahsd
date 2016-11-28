@@ -109,6 +109,7 @@ STATUS spacestate_init(void)
 	configuration *conf = get_modifiable_conf();
 	GError *error = NULL;
 	struct sigaction sa;
+	dbi_inst dbi_instance = 0;
 
 	/* Establish SIGCHLD handler. */
 	sigemptyset(&sa.sa_mask);
@@ -170,8 +171,8 @@ STATUS spacestate_init(void)
 	DEBUG(1, "Setting properties to %s space state database %s at %s as user %s", conf->spacestate_driver,
 		conf->spacestate_name, conf->spacestate_host, conf->spacestate_username);
 
-	dbi_initialize(NULL);
-	conn = dbi_conn_new(conf->spacestate_driver);
+	dbi_initialize_r(NULL, &dbi_instance);
+	conn = dbi_conn_new_r(conf->spacestate_driver, &dbi_instance);
 	dbi_conn_set_option(conn, "host", conf->spacestate_host);
 	dbi_conn_set_option(conn, "username", conf->spacestate_username);
 	dbi_conn_set_option(conn, "password", conf->spacestate_password);
@@ -180,4 +181,3 @@ STATUS spacestate_init(void)
 
 	return ST_OK;
 }
-

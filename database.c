@@ -128,6 +128,7 @@ STATUS database_init(void)
 {
 	configuration *conf = get_modifiable_conf();
 	GError *error = NULL;
+	dbi_inst dbi_instance = 0;
 
 	conf->database_host = g_key_file_get_string(conf->keyfile, "database",
 												"host", &error);
@@ -167,8 +168,8 @@ STATUS database_init(void)
 	DEBUG(1, "Setting properties to %s database %s at %s as user %s", conf->database_driver, 
 		conf->database_name, conf->database_host, conf->database_username);
 
-	dbi_initialize(NULL);
-	conn = dbi_conn_new(conf->database_driver);
+	dbi_initialize_r(NULL, &dbi_instance);
+	conn = dbi_conn_new_r(conf->database_driver, &dbi_instance);
 	dbi_conn_set_option(conn, "host", conf->database_host);
 	dbi_conn_set_option(conn, "username", conf->database_username);
 	dbi_conn_set_option(conn, "password", conf->database_password);
