@@ -47,16 +47,16 @@ STATUS debug(int loglevel, const char *location, const char *function, ...)
 	if (s == 0) {
 		const char *text = "Failed to get proper strftime formatted date\n";
 		if (conf->foreground) {
-			fprintf(stderr, text);
+			fprintf(stderr, "%s", text);
 		}
-		fprintf(logfile, text);
+		fprintf(logfile, "%s", text);
 		return ST_GENERAL_FAILURE;
 	}
 
-	fprintf(logfile, "%s: %s(%d): Log level %d, at %s in function %s():\n", 
+	fprintf(logfile, "%s: %s(%d): Log level %d, at %s in function %s():\n",
 	                 timebuf, get_process_name(), getpid(), loglevel, location, function);
 	if (conf->foreground)
-		fprintf(stderr, "%s: %s(%d): Log level %d, at %s in function %s():\n", 
+		fprintf(stderr, "%s: %s(%d): Log level %d, at %s in function %s():\n",
 		                timebuf, get_process_name(), getpid(), loglevel, location, function);
 
 	va_start(ap, function);
