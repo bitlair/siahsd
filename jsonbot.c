@@ -75,11 +75,13 @@ STATUS jsonbot_notify(TALLOC_CTX *mem_ctx, const char *prom, const char *code, c
 	if (sendto(sockfd, msgbuf_crypted, msglen, 0,
 	       (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1) {
 		DEBUG(0, "Failed to send UDP packet to %s:%d", conf->jsonbot_address, conf->jsonbot_port);
+		close(sockfd);
 		return ST_GENERAL_FAILURE;
 	}
 
 	talloc_free(outtext);
 
+	close(sockfd);
 	return ST_OK;
 }
 
