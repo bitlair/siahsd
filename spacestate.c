@@ -37,7 +37,7 @@ static void safe_forkexec(TALLOC_CTX *mem_ctx, const char *script_in, const char
 	unsigned int i, j;
 
 	argv[0] = script;
-	for (i = 0, j = 1; i < strlen(script) && j < 31; i++) {
+	for (i = 0, j = 1; i < strlen(script) && j < 30; i++) {
 		if (script[i] == ' ') {
 			script[i] = '\0';
 			argv[j++] = &script[i+1];
