@@ -39,7 +39,7 @@ def configure(conf):
     # Check for glib
     conf.check_cfg(package='glib-2.0', uselib_store='glib-2.0',
                 args=['--cflags', '--libs'])
-    
+
     # Check for talloc
     conf.check_cfg(package='talloc', uselib_store='talloc',
                 args=['--cflags', '--libs' ])
@@ -76,12 +76,11 @@ def configure(conf):
     # Used libraries
     conf.check(header_name='talloc.h', use='samba', features='c cprogram')
     conf.check(header_name='glib.h', use='glib-2.0', features='c cprogram')
-    conf.check(header_name='glibconfig.h', use='glib-2.0', features='c cprogram')
 
     conf.check(header_name='dbi/dbi.h', features='c cprogram')
     conf.check(header_name='util/data_blob.h', use='samba', features='c cprogram')
-    conf.check(header_name='core/ntstatus.h', use='samba', features='c cprogram')
-    conf.check(header_name='charset.h', use='samba', features='c cprogram')
+    #conf.check(header_name='core/ntstatus.h', use='samba', features='c cprogram')
+    #conf.check(header_name='charset.h', use='samba', features='c cprogram')
 
     conf.check_cc(lib='dbi', uselib_store='dbi')
     conf.check_cc(lib='talloc', uselib_store='samba')
@@ -91,12 +90,12 @@ def configure(conf):
     conf.check_cc(lib='nettle', uselib_store='nettle')
 
     # Purposefully at the bottom because waf configuration tests fail with -Wstrict-prototypes and -Werror
-    conf.env.CFLAGS = ['-O0', '-g', '-ggdb', '-std=c99', '-Wall', '-Wextra', '-Winit-self', '-Wformat-security','-Wshadow', '-pedantic',
-                       '-Wpointer-arith', '-Wcast-align', '-Wwrite-strings', '-Wdeclaration-after-statement', 
-                       '-Werror-implicit-function-declaration', '-Wstrict-prototypes', '-Werror', '-fPIC', '-pie', '-fstack-protector',
+    conf.env.LDFLAGS = ['-fPIC', '-pie', '-z', 'relro', '-z', 'now', '-fstack-protector', '-L/usr/local/samba/lib']
+    conf.env.CFLAGS = ['-O0', '-g', '-ggdb', '-std=gnu99', '-Wall', '-Wextra', '-Winit-self', '-Wformat-security','-Wshadow', '-pedantic',
+                       '-Wpointer-arith', '-Wcast-align', '-Wwrite-strings', '-Wno-unused-parameter',
+                       '-Werror-implicit-function-declaration', '-Wstrict-prototypes', '-fPIC', '-pie', '-fstack-protector',
                        '-D_FORTIFY_SOURCE=2']
 
-    conf.env.LDFLAGS = ['-fPIC', '-pie', '-z', 'relro', '-z', 'now', '-fstack-protector']
 def build(bld):
     bld.stlib(source="database.c", target="database", use='glib-2.0')
     bld.stlib(source="status.c", target="status", use='glib-2.0')
