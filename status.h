@@ -16,7 +16,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define DEBUG(level, args...) debug(level, __location__, __FUNCTION__, args)
+#define DEBUG(level, ...) debug(level, __location__, __func__, __VA_ARGS__)
 
 
 typedef enum {
