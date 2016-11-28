@@ -50,6 +50,7 @@ STATUS debug(int loglevel, const char *location, const char *function, ...)
 			fprintf(stderr, "%s", text);
 		}
 		fprintf(logfile, "%s", text);
+		fclose(logfile);
 		return ST_GENERAL_FAILURE;
 	}
 
