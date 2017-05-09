@@ -8,10 +8,14 @@ interface chiron
 		CHIRON_ACCOUNT = 0x41, /* 'A' */
 		CHIRON_CHALLENGE = 0x43, /* 'C' */
 		CHIRON_RESPONSE = 0x52, /* 'R' */
-		CHIRON_HANDSHAKE = 0x4B, /* 'K' */
+		CHIRON_HANDSHAKE1 = 0x4B, /* 'K' */
+		                    0x48 & 0x3 ?
+		                    0x48 + 0x3 ?
+		                    0x48 ^ 0x3 ?
+		CHIRON_HANDSHAKE2 = 0x48, /* 'H' */
 		CHIRON_ACK = 0x55, /* 'U' */
-		CHIRON_UNKNOWN = 0x48, /* 'H' */
 		CHIRON_TRANSPARENT = 0x54 /* 'T' */
+		CHIRON_UNKNOWN_IN = 0x53 /* 'S' */
 	} chiron_msg_type;
 
 	typedef [public,enum8bit] enum {
@@ -50,7 +54,12 @@ interface chiron
 	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
 		uint8 length;
 		uint8 data[length];
-	} chiron_msg_handshake;
+	} chiron_msg_handshake1;
+
+	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
+		uint8 length;
+		uint8 data[length];
+	} chiron_msg_handshake2;
 
 	typedef [public,flag(LIBNDR_FLAG_NOALIGN)] struct {
 		uint8 length;        // Always 0
@@ -66,7 +75,8 @@ interface chiron
 		[case(CHIRON_ACCOUNT)] chiron_msg_account account;
 		[case(CHIRON_CHALLENGE)] chiron_msg_challenge challenge;
 		[case(CHIRON_RESPONSE)] chiron_msg_response response;
-		[case(CHIRON_HANDSHAKE)] chiron_msg_handshake handshake;
+		[case(CHIRON_HANDSHAKE1)] chiron_msg_handshake1 handshake1;
+		[case(CHIRON_HANDSHAKE2)] chiron_msg_handshake2 handshake2;
 		[case(CHIRON_ACK)] chiron_msg_ack ack;
 		[default] chiron_msg_unknown unknown;
 	} chiron_msg_union;

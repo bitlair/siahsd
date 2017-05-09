@@ -17,6 +17,7 @@
 */
 #include "includes.h"
 #include "database.h"
+#include <signal.h>
 #include <sys/wait.h>
 
 static dbi_conn conn;

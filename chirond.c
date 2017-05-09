@@ -75,6 +75,9 @@ struct chiron_context {
 	char device_id[3];
 	uint8_t md5_last_out[0x10];
 	uint8_t rc4key[0x10];
+	bool alt_format;
+	uint8_t seq;
+	uint8_t flags;
 };
 
 /* FIXME This function is a nasty little hack. */
@@ -129,25 +132,25 @@ STATUS tlv_to_linked_list(TALLOC_CTX *mem_ctx, DATA_BLOB data, struct ll_tlv **f
 	}
 	return ST_OK;
 }
-STATUS handle_chiron_msg_ack(struct chiron_context *ctx, struct chiron_message *msg) {
+STATUS handle_chiron_msg_ack(struct chiron_context *ctx, struct chiron_msg_ack *ack) {
 	DEBUG(3, "Received ACK");
 	return ST_OK;
 }
 
-STATUS send_chiron_msg_handshake(struct chiron_context *ctx, struct chiron_message *in) {
-	struct chiron_message *out = talloc_zero(in, struct chiron_message);
-	out->msg_type = CHIRON_HANDSHAKE;
-	out->seq = in->seq;
+STATUS send_chiron_msg_handshake1(struct chiron_context *ctx, struct chiron_msg_response *response) {
+	struct chiron_message *out = talloc_zero(response, struct chiron_message);
+	out->msg_type = CHIRON_HANDSHAKE1;
+	out->seq = ctx->seq;
 	out->flags = 0xC0; /* FIXME: What does this do? */
 
 	const uint8_t payload[] = { 0x27, 0, 0x32, 0, 0x18, 0, 0x2D, 0 };
-	out->msg.handshake.data = talloc_memdup(out, payload, sizeof(payload));
-	out->msg.handshake.length = sizeof(payload);
+	out->msg.handshake1.data = talloc_memdup(out, payload, sizeof(payload));
+	out->msg.handshake1.length = sizeof(payload);
 
 	struct arcfour_ctx rc4;
 	arcfour_set_key(&rc4, MD5_HASH_LEN, ctx->rc4key);
-	arcfour_crypt(&rc4, sizeof(payload), out->msg.handshake.data, payload);
-	hexdump("Crypted outgoing payload", out->msg.handshake.data, sizeof(payload));
+	arcfour_crypt(&rc4, sizeof(payload), out->msg.handshake1.data, payload);
+	hexdump("Crypted outgoing payload", out->msg.handshake1.data, sizeof(payload));
 
 	DATA_BLOB raw_out;
 	enum ndr_err_code ndr_err = ndr_push_struct_blob(&raw_out, out, out, (ndr_push_flags_fn_t)ndr_push_chiron_message);
@@ -160,23 +163,23 @@ STATUS send_chiron_msg_handshake(struct chiron_context *ctx, struct chiron_messa
 	return ST_OK;
 }
 
-STATUS handle_chiron_msg_response(struct chiron_context *ctx, struct chiron_message *msg) {
+STATUS handle_chiron_msg_response(struct chiron_context *ctx, struct chiron_msg_response *response) {
 	DATA_BLOB crypted, decrypted;
 	struct arcfour_ctx rc4;
 	struct ll_tlv *element;
 
-	if (memcmp(msg->msg.response.md5_check, ctx->md5_last_out, 0x10)) {
+	if (memcmp(response->md5_check, ctx->md5_last_out, 0x10)) {
 		DEBUG(0, "MD5 does not match!\n");
 		return ST_PARSE_ERROR;
 	}
 	DEBUG(0, "Handling the response");
 
 	/* Copy packet to crypted data blob */
-	crypted.length = msg->msg.response.length - MD5_HASH_LEN;
-	crypted.data = talloc_memdup(msg, msg->msg.response.payload, crypted.length);
+	crypted.length = response->length - MD5_HASH_LEN;
+	crypted.data = talloc_memdup(response, response->payload, crypted.length);
 	NO_MEM_RETURN(crypted.data);
 
-	decrypted.data = talloc_array(msg, uint8_t, crypted.length);
+	decrypted.data = talloc_array(response, uint8_t, crypted.length);
 	NO_MEM_RETURN(decrypted.data);
 	decrypted.length = crypted.length;
 
@@ -189,20 +192,20 @@ STATUS handle_chiron_msg_response(struct chiron_context *ctx, struct chiron_mess
 	decrypted.data += 3;
 	decrypted.length -= 3;
 
-	tlv_to_linked_list(msg, decrypted, &element);
+	tlv_to_linked_list(response, decrypted, &element);
 	while (element != NULL) {
 		DEBUG(1, "Type: %x, Length: %d", element->type, element->length);
 		hexdump("Data", element->data_ptr, element->length);
 		element = element->next;
 	}
-	send_chiron_msg_handshake(ctx, msg);
+	send_chiron_msg_handshake1(ctx, response);
 
 	return ST_OK;
 }
 
 
-STATUS send_chiron_msg_challenge(struct chiron_context *ctx, struct chiron_message *in) {
-	struct chiron_message *out = talloc_zero(in, struct chiron_message);
+STATUS send_chiron_msg_challenge(struct chiron_context *ctx, struct chiron_msg_account *account) {
+	struct chiron_message *out = talloc_zero(account, struct chiron_message);
 	struct md5_ctx md5;
 	uint8_t *md5input;
 	enum ndr_err_code ndr_err;
@@ -212,22 +215,22 @@ STATUS send_chiron_msg_challenge(struct chiron_context *ctx, struct chiron_messa
 	DEBUG(0, "Sending out a challenge");
 
 	out->msg_type = CHIRON_CHALLENGE;
-	out->seq = in->seq;
-	out->flags = in->flags;
+	out->seq = ctx->seq;
+	out->flags = ctx->flags;
 
 	/* Make an md5 hash of the account code with the seq byte appended. */
-	md5input = talloc_array(in, uint8_t, in->msg.account.length + 1);
+	md5input = talloc_array(account, uint8_t, account->length + 1);
 	NO_MEM_RETURN(md5input);
 
-	memcpy(md5input, in->msg.account.account_code, in->msg.account.length);
-	md5input[in->msg.account.length] = in->seq;
+	memcpy(md5input, account->account_code, account->length);
+	md5input[account->length] = ctx->seq;
 
 	out->msg.challenge.md5_check = talloc_array(out, uint8_t, MD5_HASH_LEN);
 	NO_MEM_RETURN(out->msg.challenge.md5_check);
 
 
 	md5_init(&md5);
-	md5_update(&md5, in->msg.account.length + 1, md5input);
+	md5_update(&md5, account->length + 1, md5input);
 	md5_digest(&md5, MD5_HASH_LEN, out->msg.challenge.md5_check);
 	talloc_free(md5input);
 
@@ -258,17 +261,17 @@ STATUS send_chiron_msg_challenge(struct chiron_context *ctx, struct chiron_messa
 	out->msg.challenge.challenge[7] = 0x5f;
 	out->msg.challenge.challenge[8] = 0x47;
 #endif
-// 0x96, 0xf4, 0xc4, 0x86,
-//        0xd9, 0x83, 0x4d, 0x87, 0x48
-	out->msg.challenge.challenge[0] = 0x96;
-	out->msg.challenge.challenge[1] = 0xf4;
-	out->msg.challenge.challenge[2] = 0xc4;
-	out->msg.challenge.challenge[3] = 0x86;
-	out->msg.challenge.challenge[4] = 0xd9;
-	out->msg.challenge.challenge[5] = 0x83;
-	out->msg.challenge.challenge[6] = 0x4d;
-	out->msg.challenge.challenge[7] = 0x87;
-	out->msg.challenge.challenge[8] = 0x48;
+//		0x60, 0x19, 0x12, 0xa8, 0x91, 0x45, 0x89, 0x8f, 
+//		0x37 };
+	out->msg.challenge.challenge[0] = 0x60;
+	out->msg.challenge.challenge[1] = 0x19;
+	out->msg.challenge.challenge[2] = 0x12;
+	out->msg.challenge.challenge[3] = 0xa8;
+	out->msg.challenge.challenge[4] = 0x91;
+	out->msg.challenge.challenge[5] = 0x45;
+	out->msg.challenge.challenge[6] = 0x89;
+	out->msg.challenge.challenge[7] = 0x8f;
+	out->msg.challenge.challenge[8] = 0x37;
 
 	ndr_err = ndr_push_struct_blob(&raw_out, out, out, (ndr_push_flags_fn_t)ndr_push_chiron_message);
 	if (ndr_err != NDR_ERR_SUCCESS) {
@@ -279,11 +282,11 @@ STATUS send_chiron_msg_challenge(struct chiron_context *ctx, struct chiron_messa
 
 
 	/* Update the md5 check for the next message (last 9 bytes with the seq byte appended). */
-	md5input = talloc_array(in, uint8_t, CHALLENGE_LEN + 1);
+	md5input = talloc_array(account, uint8_t, CHALLENGE_LEN + 1);
 	NO_MEM_RETURN(md5input);
 
 	memcpy(md5input, &raw_out.data[MSG_HDR_LEN + MD5_HASH_LEN], CHALLENGE_LEN);
-	md5input[CHALLENGE_LEN] = in->seq;
+	md5input[CHALLENGE_LEN] = ctx->seq;
 
 
 	md5_init(&md5);
@@ -291,7 +294,7 @@ STATUS send_chiron_msg_challenge(struct chiron_context *ctx, struct chiron_messa
 	md5_digest(&md5, MD5_HASH_LEN, ctx->md5_last_out);
 
 	/* Update the rc4 crypto key, which is seq+challenge */
-	md5input[0] = in->seq;
+	md5input[0] = ctx->seq;
 	memcpy(&md5input[1], &raw_out.data[MSG_HDR_LEN + MD5_HASH_LEN], CHALLENGE_LEN);
 
 	md5_init(&md5);
@@ -309,41 +312,79 @@ STATUS send_chiron_msg_challenge(struct chiron_context *ctx, struct chiron_messa
 	return ST_OK;
 }
 
-STATUS handle_chiron_msg_account(struct chiron_context *ctx, struct chiron_message *msg) {
+STATUS handle_chiron_msg_account(struct chiron_context *ctx, struct chiron_msg_account *account) {
 
-	ctx->account_code = talloc_memdup(msg, msg->msg.account.account_code, msg->msg.account.length);
+	ctx->account_code = talloc_memdup(account, account->account_code, account->length);
 	NO_MEM_RETURN(ctx->account_code);
 
-	send_chiron_msg_challenge(ctx, msg);
+	send_chiron_msg_challenge(ctx, account);
 	return ST_OK;
 }
 
 STATUS handle_message(struct chiron_context *ctx, DATA_BLOB data) {
-	struct chiron_message *msg;
-	enum ndr_err_code ndr_err;
-	STATUS status;
-	msg = talloc(data.data, struct chiron_message);
+
+	struct chiron_message *msg = talloc(data.data, struct chiron_message);
+	NO_MEM_RETURN(msg);
+	struct chiron_alt_message *alt_msg = talloc(data.data, struct chiron_alt_message);
 	NO_MEM_RETURN(msg);
 
 	/* Parse the packet */
-	ndr_err = ndr_pull_struct_blob_all(&data, msg, msg, (ndr_pull_flags_fn_t)ndr_pull_chiron_message);
+	enum ndr_err_code ndr_err;
+	if (data.length > 0 && data.data[0] != 1) {
+		ndr_err = ndr_pull_struct_blob_all(&data, msg, msg, (ndr_pull_flags_fn_t)ndr_pull_chiron_message);
+		ctx->seq = msg->seq;
+		ctx->flags = msg->flags;
+	} else {
+		ndr_err = ndr_pull_struct_blob_all(&data, alt_msg, alt_msg, (ndr_pull_flags_fn_t)ndr_pull_chiron_alt_message);
+		ctx->alt_format = 1;
+		ctx->seq = alt_msg->seq;
+		ctx->flags = 0;
+	}
 
 	if (ndr_err != NDR_ERR_SUCCESS) {
 		DEBUG(0, "Could not parse this message");
 		return ST_PARSE_ERROR;
 	}
-	DEBUG(0, "%s", ndr_print_struct_string(msg,(ndr_print_fn_t)ndr_print_chiron_message, "chiron message", msg));
-
-	switch (msg->msg_type) {
-		case CHIRON_ACCOUNT:
-			status = handle_chiron_msg_account(ctx, msg);
+	enum chiron_msg_type msg_type;
+	if (ctx->alt_format) {
+		DEBUG(0, "%s", ndr_print_struct_string(msg,(ndr_print_fn_t)ndr_print_chiron_alt_message, "chiron alt message", alt_msg));
+		msg_type = alt_msg->msg_type;
+	} else {
+		DEBUG(0, "%s", ndr_print_struct_string(msg,(ndr_print_fn_t)ndr_print_chiron_message, "chiron message", msg));
+		msg_type = msg->msg_type;
+	}
+	STATUS status;
+	switch (msg_type) {
+		case CHIRON_ACCOUNT: {
+			struct chiron_msg_account *account;
+			if (ctx->alt_format) {
+				account = talloc_memdup(alt_msg, &alt_msg->msg.account, sizeof(struct chiron_msg_account));
+			} else {
+				account = talloc_memdup(msg, &msg->msg.account, sizeof(struct chiron_msg_account));
+			}
+			status = handle_chiron_msg_account(ctx, account);
 			break;
-		case CHIRON_RESPONSE:
-			status = handle_chiron_msg_response(ctx, msg);
+		}
+		case CHIRON_RESPONSE: {
+			struct chiron_msg_response *response;
+			if (ctx->alt_format) {
+				response = talloc_memdup(alt_msg, &alt_msg->msg.response, sizeof(struct chiron_msg_response));
+			} else {
+				response = talloc_memdup(msg, &msg->msg.response, sizeof(struct chiron_msg_response));
+			}
+			status = handle_chiron_msg_response(ctx, response);
 			break;
-		case CHIRON_ACK:
-			status = handle_chiron_msg_ack(ctx, msg);
+		}
+		case CHIRON_ACK: {
+			struct chiron_msg_ack *ack;
+			if (ctx->alt_format) {
+				ack = talloc_memdup(alt_msg, &alt_msg->msg.ack, sizeof(struct chiron_msg_ack));
+			} else {
+				ack = talloc_memdup(msg, &msg->msg.ack, sizeof(struct chiron_msg_ack));
+			}
+			status = handle_chiron_msg_ack(ctx, ack);
 			break;
+		}
 		default:
 			DEBUG(0, "Got unexpected message type: %s.",
 				  ndr_print_chiron_msg_type_enum(msg, msg->msg_type));
@@ -539,7 +580,7 @@ int main (int argc, char **argv) {
 
 	const uint8_t out_message2[] = { 0x4b, 0x02, 0xc0, 0x00 };
 #endif
-
+#if 0
 	const uint8_t in_message1[] = {
 		0x41, 0x03, 0x88, 0x04, 0x33, 0x35, 0x30, 0x30 };
 	const uint8_t out_message1[] = {
@@ -555,6 +596,40 @@ int main (int argc, char **argv) {
 		0xbf, 0xfa, 0xf1 };
 	const uint8_t out_message2[] = {
 		0x4b, 0x03, 0xc0, 0x00 };
+#endif
+	// Hello A 3500
+	const uint8_t in_message1[] = {
+		0x01, 0x01, 0x02, 0x00, 0x00, 0x06, 0x41, 0x04,
+		0x33, 0x35, 0x30, 0x30 };
+	// Challenge
+	const uint8_t out_message1[] = {
+		0x01, 0x01, 0x02, 0x00, 0x00, 0x0b, 0x43, 0x09,
+		0x60, 0x19, 0x12, 0xa8, 0x91, 0x45, 0x89, 0x8f,
+		0x37 };
+	// Response
+	const uint8_t in_message2[] = {
+		0x01, 0x01, 0x02, 0x00, 0x00, 0x15, 0x52, 0x10,
+		0x10, 0x39, 0xcc, 0x35, 0xb9, 0x08, 0x5a, 0x92,
+		0xd7, 0x2a, 0xd3, 0x07, 0x10, 0xae, 0x0d, 0xfc,
+		0x20, 0x01, 0x01 };
+	// Send handshake message
+	//  Encrypted payload?: 07 2f b9 81 3d 0f 14 ac 59
+	const uint8_t out_message2[] = {
+		0x01, 0x01, 0x02, 0x00, 0x00, 0x0b, 0x48, 0x09,
+		0x75, 0x4a, 0x65, 0x60, 0x4a, 0x44, 0x3a, 0x6c,
+		0x5e };
+
+	// Receive something..
+	const uint8_t in_message3[] = {
+		0x01, 0x01, 0x02, 0x01, 0x00, 0x1a, 0x53, 0x18,
+		0x51, 0x56, 0xe9, 0xd1, 0x47, 0x37, 0x60, 0x94,
+		0x46, 0xaa, 0x5d, 0x6b, 0x93, 0x63, 0x37, 0x6b,
+		0x81, 0xf4, 0xa3, 0x23, 0xab, 0x3f, 0xe4, 0x25,
+		0xdf, 0xd3, 0x2b, 0xb7, 0x2d, 0x82 };
+	// 
+	const uint8_t out_message3[] = {
+		0x01, 0x01, 0x02, 0x01, 0x00, 0x02, 0x41, 0x00 };
+
 	DATA_BLOB data;
 	data.data = talloc_memdup(client_ctx, in_message1, sizeof(in_message1));
 	data.length = sizeof(in_message1);
@@ -569,8 +644,8 @@ int main (int argc, char **argv) {
 	struct arcfour_ctx rc4;
 	arcfour_set_key(&rc4, MD5_HASH_LEN, client_ctx->rc4key);
 	uint8_t buf[sizeof(out_message2)] = {0};
-	arcfour_crypt(&rc4, sizeof(out_message2) - 4, buf, out_message2 + 4);
-	hexdump("Decrypted outgoing payload", buf, sizeof(out_message2) - 4);
+	arcfour_crypt(&rc4, sizeof(out_message2) - 8, buf, out_message2 + 8);
+	hexdump("Decrypted outgoing payload", buf, sizeof(out_message2) - 8);
 
 
 	/*
