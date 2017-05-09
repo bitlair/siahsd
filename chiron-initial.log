@@ -1,0 +1,111 @@
+Mon Nov 21 20:40:07 2016: ./build/chirond(15477): Log level 0, at ../chirond.c:308 in function handle_message():
+    chiron message: struct chiron_message
+        msg_type                 : CHIRON_ACCOUNT (65)
+        seq                      : 0x01 (1)
+        flags                    : 0xa8 (168)
+        msg                      : union chiron_msg_union(case 65)
+        account: struct chiron_msg_account
+            length                   : 0x04 (4)
+            account_code: ARRAY(4)
+                [0]                      : 0x33 (51)
+                [1]                      : 0x35 (53)
+                [2]                      : 0x30 (48)
+                [3]                      : 0x30 (48)
+
+Mon Nov 21 20:40:07 2016: ./build/chirond(15477): Log level 0, at ../chirond.c:210 in function send_chiron_msg_challenge():
+Sending out a challenge
+Mon Nov 21 20:40:07 2016: ./build/chirond(15477): Log level 0, at ../chirond.c:278 in function send_chiron_msg_challenge():
+The expected md5sum for the next entry is 627fd0b8bc706a21442115b494206298
+Mon Nov 21 20:40:07 2016: ./build/chirond(15477): Log level 0, at ../chirond.c:308 in function handle_message():
+    chiron message: struct chiron_message
+        msg_type                 : CHIRON_RESPONSE (82)
+        seq                      : 0x01 (1)
+        flags                    : 0xa8 (168)
+        msg                      : union chiron_msg_union(case 82)
+        response: struct chiron_msg_response
+            length                   : 0x37 (55)
+            md5_check: ARRAY(16)
+                [0]                      : 0x62 (98)
+                [1]                      : 0x7f (127)
+                [2]                      : 0xd0 (208)
+                [3]                      : 0xb8 (184)
+                [4]                      : 0xbc (188)
+                [5]                      : 0x70 (112)
+                [6]                      : 0x6a (106)
+                [7]                      : 0x44 (68)
+                [8]                      : 0x44 (68)
+                [9]                      : 0x21 (33)
+                [10]                     : 0x15 (21)
+                [11]                     : 0xb4 (180)
+                [12]                     : 0x94 (148)
+                [13]                     : 0x20 (32)
+                [14]                     : 0x62 (98)
+                [15]                     : 0x98 (152)
+            payload: ARRAY(39)
+                [0]                      : 0x7a (122)
+                [1]                      : 0xe2 (226)
+                [2]                      : 0xde (222)
+                [3]                      : 0xc2 (194)
+                [4]                      : 0xed (237)
+                [5]                      : 0x76 (118)
+                [6]                      : 0x84 (132)
+                [7]                      : 0x5f (95)
+                [8]                      : 0xe6 (230)
+                [9]                      : 0x16 (22)
+                [10]                     : 0x2b (43)
+                [11]                     : 0x6b (107)
+                [12]                     : 0xb9 (185)
+                [13]                     : 0x10 (16)
+                [14]                     : 0xa3 (163)
+                [15]                     : 0x6c (108)
+                [16]                     : 0x14 (20)
+                [17]                     : 0x44 (68)
+                [18]                     : 0x56 (86)
+                [19]                     : 0xca (202)
+                [20]                     : 0x45 (69)
+                [21]                     : 0xc6 (198)
+                [22]                     : 0xc2 (194)
+                [23]                     : 0xeb (235)
+                [24]                     : 0xec (236)
+                [25]                     : 0x1b (27)
+                [26]                     : 0xd8 (216)
+                [27]                     : 0x7a (122)
+                [28]                     : 0xa4 (164)
+                [29]                     : 0x4c (76)
+                [30]                     : 0xc0 (192)
+                [31]                     : 0xb4 (180)
+                [32]                     : 0x88 (136)
+                [33]                     : 0x64 (100)
+                [34]                     : 0x6e (110)
+                [35]                     : 0x2b (43)
+                [36]                     : 0xee (238)
+                [37]                     : 0x11 (17)
+                [38]                     : 0x54 (84)
+
+Mon Nov 21 20:40:07 2016: ./build/chirond(15477): Log level 0, at ../chirond.c:170 in function handle_chiron_msg_response():
+Handling the response
+Decrypted:
+  0000  00 ad c7 0c 04 a8 de fe ff 20 01 01 21 01 63 17  ......... ..!.c.
+  0010  16 49 52 49 53 20 54 6f 75 63 68 20 34 32 30 20  .IRIS Touch 420 
+  0020  76 31 2e 31 34 2e 33                             v1.14.3
+Mon Nov 21 20:40:07 2016: ./build/chirond(15477): Log level 1, at ../chirond.c:192 in function handle_chiron_msg_response():
+Type: 12, Length: 4
+Data:
+  0000  a8 de fe ff                                      ....
+Mon Nov 21 20:40:07 2016: ./build/chirond(15477): Log level 1, at ../chirond.c:192 in function handle_chiron_msg_response():
+Type: 32, Length: 1
+Data:
+  0000  01                                               .
+Mon Nov 21 20:40:07 2016: ./build/chirond(15477): Log level 1, at ../chirond.c:192 in function handle_chiron_msg_response():
+Type: 33, Length: 1
+Data:
+  0000  63                                               c
+Mon Nov 21 20:40:07 2016: ./build/chirond(15477): Log level 1, at ../chirond.c:192 in function handle_chiron_msg_response():
+Type: 23, Length: 22
+Data:
+  0000  49 52 49 53 20 54 6f 75 63 68 20 34 32 30 20 76  IRIS Touch 420 v
+  0010  31 2e 31 34 2e 33                                1.14.3
+Crypted outgoing payload:
+  0000  5d 4f 2b ce f1 de 77 a1                          ]O+...w.
+Decrypted outgoing payload:
+  0000  27 00 32 00 18 00 2d 00                          '.2...-.

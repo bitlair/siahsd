@@ -321,6 +321,25 @@ STATUS handle_chiron_msg_account(struct chiron_context *ctx, struct chiron_msg_a
 	return ST_OK;
 }
 
+STATUS handle_chiron_msg_unknown(struct chiron_context *ctx, struct chiron_msg_unknown *unknown) {
+	DATA_BLOB crypted, decrypted;
+	struct arcfour_ctx rc4;
+
+	/* Copy packet to crypted data blob */
+	crypted.length = unknown->length+6;
+	crypted.data = talloc_memdup(unknown, unknown->data, crypted.length);
+	NO_MEM_RETURN(crypted.data);
+	decrypted.data = talloc_array(unknown, uint8_t, crypted.length);
+	NO_MEM_RETURN(decrypted.data);
+	decrypted.length = crypted.length;
+
+	arcfour_set_key(&rc4, MD5_HASH_LEN, ctx->rc4key);
+	arcfour_crypt(&rc4, crypted.length, decrypted.data, crypted.data);
+	hexdump("Decrypted", decrypted.data, decrypted.length);
+
+	return ST_OK;
+}
+
 STATUS handle_message(struct chiron_context *ctx, DATA_BLOB data) {
 
 	struct chiron_message *msg = talloc(data.data, struct chiron_message);
@@ -383,6 +402,17 @@ STATUS handle_message(struct chiron_context *ctx, DATA_BLOB data) {
 				ack = talloc_memdup(msg, &msg->msg.ack, sizeof(struct chiron_msg_ack));
 			}
 			status = handle_chiron_msg_ack(ctx, ack);
+			break;
+		}
+		case CHIRON_UNKNOWN_IN: {
+			struct chiron_msg_unknown *unknown;
+			if (ctx->alt_format) {
+				unknown = talloc_memdup(alt_msg, &alt_msg->msg.unknown_in, sizeof(struct chiron_msg_unknown));
+			} else {
+				unknown = talloc_memdup(msg, &msg->msg.unknown_in, sizeof(struct chiron_msg_unknown));
+			}
+			status = handle_chiron_msg_unknown(ctx, unknown);
+
 			break;
 		}
 		default:
@@ -612,21 +642,21 @@ int main (int argc, char **argv) {
 		0x10, 0x39, 0xcc, 0x35, 0xb9, 0x08, 0x5a, 0x92,
 		0xd7, 0x2a, 0xd3, 0x07, 0x10, 0xae, 0x0d, 0xfc,
 		0x20, 0x01, 0x01 };
-	// Send handshake message
+	// Send new encryption key, apparently (why again?)
 	//  Encrypted payload?: 07 2f b9 81 3d 0f 14 ac 59
 	const uint8_t out_message2[] = {
 		0x01, 0x01, 0x02, 0x00, 0x00, 0x0b, 0x48, 0x09,
 		0x75, 0x4a, 0x65, 0x60, 0x4a, 0x44, 0x3a, 0x6c,
 		0x5e };
 
-	// Receive something..
+	// Receive some shit.
 	const uint8_t in_message3[] = {
 		0x01, 0x01, 0x02, 0x01, 0x00, 0x1a, 0x53, 0x18,
 		0x51, 0x56, 0xe9, 0xd1, 0x47, 0x37, 0x60, 0x94,
 		0x46, 0xaa, 0x5d, 0x6b, 0x93, 0x63, 0x37, 0x6b,
 		0x81, 0xf4, 0xa3, 0x23, 0xab, 0x3f, 0xe4, 0x25,
 		0xdf, 0xd3, 0x2b, 0xb7, 0x2d, 0x82 };
-	// 
+	
 	const uint8_t out_message3[] = {
 		0x01, 0x01, 0x02, 0x01, 0x00, 0x02, 0x41, 0x00 };
 
@@ -641,12 +671,18 @@ int main (int argc, char **argv) {
 	handle_message(client_ctx, data);
 	talloc_free(data.data);
 
+	/* Attempt at parsing out_message2 */
 	struct arcfour_ctx rc4;
 	arcfour_set_key(&rc4, MD5_HASH_LEN, client_ctx->rc4key);
 	uint8_t buf[sizeof(out_message2)] = {0};
 	arcfour_crypt(&rc4, sizeof(out_message2) - 8, buf, out_message2 + 8);
 	hexdump("Decrypted outgoing payload", buf, sizeof(out_message2) - 8);
 
+	data.data = talloc_memdup(client_ctx, in_message3, sizeof(in_message3));
+	data.length = sizeof(in_message3);
+	printf("%x %x\n", sizeof(in_message3), data.length);
+	handle_message(client_ctx, data);
+	talloc_free(data.data);
 
 	/*
 	 * Open up a TCP socket the Chiron port
