@@ -16,5 +16,5 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-STATUS spacestate_update(TALLOC_CTX *mem_ctx, const char *prom, const char *code, const char *description);
-STATUS spacestate_init(void);
+STATUS script_update(TALLOC_CTX *mem_ctx, const char *prom, const char *code, const char *description);
+STATUS script_init(void);
