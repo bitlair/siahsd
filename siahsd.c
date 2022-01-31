@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
 		decoded = talloc_memdup(pkt, &buf[8], pkt->len - 6);
 		NO_MEM_RETURN(decoded);
 
-		uint8_t key = decoded[0x10];
+		uint8_t key = buf[0x10];
 
 		/* Decode with XOR 0xB6 */
 		for (uint32_t i = 0; i < pkt->len - 6; i++) {
@@ -244,7 +244,7 @@ int main(int argc, char **argv) {
 			send_reply(pkt, sock, from, pkt, reply_message);
 			
 
-		} else if (strncmp(pkt->message, "MESSAGE ", strlen("MESSAGE ")) == 0) {
+		} else if (strncasecmp(pkt->message, "MESSAGE ", strlen("MESSAGE ")) == 0) {
 			char *pkt_prom;
 
 			send_reply(pkt, sock, from, pkt, "ACKNOWLEDGE MESSAGE");
