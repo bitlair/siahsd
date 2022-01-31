@@ -17,6 +17,7 @@
 */
 #include "includes.h"
 #include "siahs.h"
+#include <strings.h>
 
 #define MY_DEVICE "RCIPv2.4"
 
