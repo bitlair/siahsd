@@ -205,10 +205,11 @@ int main(int argc, char **argv) {
 		decoded = talloc_memdup(pkt, &buf[8], pkt->len - 6);
 		NO_MEM_RETURN(decoded);
 
+		uint8_t key = decoded[0x10];
 
 		/* Decode with XOR 0xB6 */
 		for (uint32_t i = 0; i < pkt->len - 6; i++) {
-			decoded[i] ^= 0xB6;
+			decoded[i] ^= key;
 		}
 		
 		pkt->device = talloc_strndup(pkt, (char *)decoded, 12);
