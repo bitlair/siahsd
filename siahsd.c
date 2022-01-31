@@ -227,7 +227,7 @@ int main(int argc, char **argv) {
 		               pkt->device, pkt->prom, pkt->message, inet_ntoa(from.sin_addr), src_port);
 
 		/* Handle registrations, reconnects and messages */
-		if (strcmp(pkt->message, "REGISTRATION REQUEST") == 0) {
+		if (strcmp(pkt->message, "REGISTRATION REQUEST") == 0 || strcmp(pkt->message, "registration") == 0) {
 
 			/* XXX I'm sending this to this very same socket now. This should be used as a dispatcher */
 			reply_message = talloc_asprintf(pkt, "REGISTRATION RENEWAL AT PORT %05d", conf->siahs_port);
