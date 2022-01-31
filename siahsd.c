@@ -235,7 +235,7 @@ int main(int argc, char **argv) {
 
 			send_reply(pkt, sock, from, pkt, reply_message);
 
-		} else if (strcmp(pkt->message, "RECONNECT REQUEST") == 0) {
+		} else if (strcmp(pkt->message, "RECONNECT REQUEST") == 0 || strcmp(pkt->message, "reconnect") == 0) {
 
 			/* This is the first message that arrives at the registration referred port  */
 			reply_message = talloc_asprintf(pkt, "RECONNECTED AT PORT %05d", conf->siahs_port);
