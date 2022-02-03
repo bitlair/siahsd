@@ -100,6 +100,7 @@ def build(bld):
     bld.stlib(source="database.c", target="database", use='glib-2.0')
     bld.stlib(source="status.c", target="status", use='glib-2.0')
     bld.stlib(source="spacestate.c", target="spacestate", use='glib-2.0')
+    bld.stlib(source="hook_script.c", target="hook_script", use='glib-2.0')
     bld.stlib(source="config.c", target="config", use='glib-2.0 database jsonbot spacestate')
     bld.stlib(source="sia.c", target="sia", use='glib-2.0')
     bld.stlib(source="siahs.c", target="siahs", use='glib-2.0')
